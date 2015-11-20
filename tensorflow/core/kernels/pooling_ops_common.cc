@@ -4,12 +4,12 @@
 #include "tensorflow/core/public/tensor.h"
 
 #if GOOGLE_CUDA
+#include "tensorflow/stream_executor/dnn.h"
+#include "tensorflow/stream_executor/stream.h"
 #include "tensorflow/core/common_runtime/gpu_device_context.h"
 #include "tensorflow/core/kernels/conv_2d.h"
 #include "tensorflow/core/kernels/maxpooling_op_gpu.h"
 #include "tensorflow/core/kernels/pooling_ops_common_gpu.h"
-#include "tensorflow/stream_executor/dnn.h"
-#include "tensorflow/stream_executor/stream.h"
 #endif  // GOOGLE_CUDA
 
 namespace tensorflow {
@@ -99,13 +99,13 @@ perftools::gputools::DeviceMemory<T> AsDeviceMemory(const T* cuda_memory,
 
 // Forward declarations of the functor specializations for GPU.
 namespace functor {
-#define DECLARE_GPU_SPEC(T)                                      \
-  template <>                                                    \
-  void TransformDepth<GPUDevice, T>::operator()(                 \
-      const GPUDevice& d, typename TTypes<T, 4>::ConstTensor in, \
-      const Eigen::DSizes<Eigen::DenseIndex, 4>& shuffle,        \
-      typename TTypes<T, 4>::Tensor out);                        \
-  extern template struct TransformDepth<GPUDevice, T>;
+#define DECLARE_GPU_SPEC(T)                                         \
+  template <>                                                       \
+  void TransformDepth<GPUDevice, T, Eigen::DenseIndex>::operator()( \
+      const GPUDevice& d, typename TTypes<T, 4>::ConstTensor in,    \
+      const Eigen::DSizes<Eigen::DenseIndex, 4>& shuffle,           \
+      typename TTypes<T, 4>::Tensor out);                           \
+  extern template struct TransformDepth<GPUDevice, T, Eigen::DenseIndex>;
 
 DECLARE_GPU_SPEC(float);
 #undef DECLARE_GPU_SPEC
@@ -167,26 +167,25 @@ void DnnPoolingGradOp<T>::Compute(
                        out_backprop.dim_size(1), out_backprop.dim_size(2)}),
           &transformed_output_backprop));
 
-  auto nhwc_to_nchw = Eigen::DSizes<Eigen::DenseIndex, 4>(0, 3, 1, 2);
   if (tensor_in) {
     // For AvgPoolGrad, the original input tensor is not necessary. However,
     // cudnn still requires them to run, although they do not affect the
     // results.
-    functor::TransformDepth<GPUDevice, T>()(
-        context->eigen_device<Device>(), tensor_in->tensor<T, 4>(),
-        nhwc_to_nchw, transformed_input.tensor<T, 4>());
+    functor::NHWCToNCHW<GPUDevice, T>()(context->eigen_device<Device>(),
+                                        tensor_in->tensor<T, 4>(),
+                                        transformed_input.tensor<T, 4>());
   }
   if (tensor_out) {
     // For AvgPoolGrad, the original output tensor is not necessary. However,
     // cudnn still requires them to run, although they do not affect the
     // results.
-    functor::TransformDepth<GPUDevice, T>()(
-        context->eigen_device<Device>(), tensor_out->tensor<T, 4>(),
-        nhwc_to_nchw, transformed_output.tensor<T, 4>());
+    functor::NHWCToNCHW<GPUDevice, T>()(context->eigen_device<Device>(),
+                                        tensor_out->tensor<T, 4>(),
+                                        transformed_output.tensor<T, 4>());
   }
-  functor::TransformDepth<GPUDevice, T>()(
+  functor::NHWCToNCHW<GPUDevice, T>()(
       context->eigen_device<Device>(), out_backprop.tensor<T, 4>(),
-      nhwc_to_nchw, transformed_output_backprop.tensor<T, 4>());
+      transformed_output_backprop.tensor<T, 4>());
 
   /// Get ready to call cudnn
   perftools::gputools::dnn::PoolingDescriptor pooling_desc;
@@ -238,11 +237,10 @@ void DnnPoolingGradOp<T>::Compute(
 
   /// Transform the output data from NCHW back to NHWC
   auto toConstTensor = [](const Tensor& x) -> const Tensor { return x; };
-  auto nchw_to_nhwc = Eigen::DSizes<Eigen::DenseIndex, 4>(0, 2, 3, 1);
-  functor::TransformDepth<GPUDevice, T>()(
+  functor::NCHWToNHWC<GPUDevice, T>()(
       context->eigen_device<Device>(),
       toConstTensor(transformed_input_backprop).template tensor<T, 4>(),
-      nchw_to_nhwc, output->tensor<T, 4>());
+      output->tensor<T, 4>());
 }
 
 template class DnnPoolingGradOp<float>;

@@ -1,4 +1,7 @@
 """Takes a generator of values, and accumulates them for a frontend."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import collections
 import threading
@@ -140,6 +143,8 @@ class EventAccumulator(object):
     self._is_autoupdating = False
     self._activated = False
     self._compression_bps = compression_bps
+    self.most_recent_step = -1
+    self.most_recent_wall_time = -1
 
   def Reload(self):
     """Loads all events added since the last call to `Reload`.
@@ -153,6 +158,31 @@ class EventAccumulator(object):
     self._activated = True
     with self._generator_mutex:
       for event in self._generator.Load():
+        ## Check if the event happened after a crash
+        if event.step < self.most_recent_step:
+
+          ## Keep data in reservoirs that has a step less than event.step
+          _NotExpired = lambda x: x.step < event.step
+          num_expired_scalars = self._scalars.FilterItems(_NotExpired)
+          num_expired_histograms = self._histograms.FilterItems(_NotExpired)
+          num_expired_compressed_histograms = self._compressed_histograms.FilterItems(
+              _NotExpired)
+          num_expired_images = self._images.FilterItems(_NotExpired)
+
+          purge_msg = (
+              'Detected out of order event.step likely caused by a Tensorflow '
+              'restart. Purging expired events from Tensorboard display '
+              'between the previous step: {} (timestamp: {}) and current step:'
+              ' {} (timestamp: {}). Removing {} scalars, {} histograms, {} '
+              'compressed histograms, and {} images.').format(
+                  self.most_recent_step, self.most_recent_wall_time, event.step,
+                  event.wall_time, num_expired_scalars, num_expired_histograms,
+                  num_expired_compressed_histograms, num_expired_images)
+          logging.warn(purge_msg)
+        else:
+          self.most_recent_step = event.step
+          self.most_recent_wall_time = event.wall_time
+        ## Process the event
         if event.HasField('graph_def'):
           if self._graph is not None:
             logging.warn(('Found more than one graph event per run.'
@@ -393,7 +423,7 @@ class EventAccumulator(object):
     bucket_limit = list(histo.bucket_limit)
 
     bucket_total = sum(bucket)
-    fraction_weights = [float(10000*x)/bucket_total for x in bucket]
+    fraction_weights = [10000 * x / bucket_total for x in bucket]
     cumsum_weights = _CumulativeSum(fraction_weights)
 
     percentiles = [

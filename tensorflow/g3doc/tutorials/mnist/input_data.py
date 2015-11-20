@@ -1,10 +1,14 @@
 """Functions for downloading and reading MNIST data."""
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 import gzip
 import os
-import urllib
 
 import numpy
+from six.moves import urllib
+from six.moves import xrange  # pylint: disable=redefined-builtin
 
 SOURCE_URL = 'http://yann.lecun.com/exdb/mnist/'
 
@@ -15,9 +19,9 @@ def maybe_download(filename, work_directory):
     os.mkdir(work_directory)
   filepath = os.path.join(work_directory, filename)
   if not os.path.exists(filepath):
-    filepath, _ = urllib.urlretrieve(SOURCE_URL + filename, filepath)
+    filepath, _ = urllib.request.urlretrieve(SOURCE_URL + filename, filepath)
     statinfo = os.stat(filepath)
-    print('Succesfully downloaded', filename, statinfo.st_size, 'bytes.')
+    print('Successfully downloaded', filename, statinfo.st_size, 'bytes.')
   return filepath
 
 

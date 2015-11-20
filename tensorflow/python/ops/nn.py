@@ -38,30 +38,53 @@ strided according to the `strides` argument.  `strides = [1, 1, 1, 1]` applies
 the filter to a patch at every offset, `strides = [1, 2, 2, 1]` applies the
 filter to every other image patch in each dimension, etc.
 
-Ignoring channels for the moment, the spatial semantics of the convolution ops
-are as follows.  If the 4-D `input` has shape
+Ignoring channels for the moment, and assume that the the 4-D `input` has shape
 `[batch, in_height, in_width, ...]` and the 4-D `filter` has shape
-`[filter_height, filter_width, ...]`, then
+`[filter_height, filter_width, ...]`, then the spatial semantics of the
+convolution ops are as follows: first, according to the padding scheme chosen
+as `'SAME'` or `'VALID'`, the output size and the padding pixels are computed.
+For the `'SAME'` padding, the output height and width are computed as:
 
-    shape(output) = [batch,
-                     (in_height - filter_height + 1) / strides[1],
-                     (in_width - filter_width + 1) / strides[2],
-                     ...]
+    out_height = ceil(float(in_height) / float(strides[1]))
+    out_width  = ceil(float(in_width) / float(stides[2]))
+
+and the padding on the top and left are computed as:
+
+    pad_along_height = ((out_height - 1) * strides[1] +
+                        filter_height - in_height)
+    pad_along_width = ((out_width - 1) * strides[2] +
+                       filter_width - in_width)
+    pad_top = pad_along_height / 2
+    pad_left = pad_along_width / 2
+
+Note that the division by 2 means that there might be cases when the padding on
+both sides (top vs bottom, right vs left) are off by one. In this case, the
+bottom and right sides always get the one additional padded pixel. For example,
+when `pad_along_height` is 5, we pad 2 pixels at the top and 3 pixels at the
+bottom. Note that this is different from existing libraries such as cuDNN and
+Caffe, which explicitly specify the number of padded pixels and always pad the
+same number of pixels on both sides.
+
+For the `'VALID`' padding, the output height and width are computed as:
+
+    out_height = ceil(float(in_height - filter_height + 1) / float(strides[1]))
+    out_width  = ceil(float(in_width - filter_width + 1) / float(stides[2]))
+
+and the padding values are always zero. The output is then computed as
 
     output[b, i, j, :] =
-        sum_{di, dj} input[b, strides[1] * i + di, strides[2] * j + dj, ...] *
+        sum_{di, dj} input[b, strides[1] * i + di - pad_top,
+                           strides[2] * j + dj - pad_left, ...] *
                      filter[di, dj, ...]
+
+where any value outside the original input image region are considered zero (
+i.e. we pad zero values around the border of the image).
 
 Since `input` is 4-D, each `input[b, i, j, :]` is a vector.  For `conv2d`, these
 vectors are multiplied by the `filter[di, dj, :, :]` matrices to produce new
 vectors.  For `depthwise_conv_2d`, each scalar component `input[b, i, j, k]`
 is multiplied by a vector `filter[di, dj, k]`, and all the vectors are
 concatenated.
-
-In the formula for `shape(output)`, the rounding direction depends on padding:
-
-* `padding = 'SAME'`: Round down (only full size windows are considered).
-* `padding = 'VALID'`: Round up (partial windows are included).
 
 @@conv2d
 @@depthwise_conv2d
@@ -79,14 +102,8 @@ In detail, the output is
 
     output[i] = reduce(value[strides * i:strides * i + ksize])
 
-for each tuple of indices `i`.  The output shape is
-
-    shape(output) = (shape(value) - ksize + 1) / strides
-
-where the rounding direction depends on padding:
-
-* `padding = 'SAME'`: Round down (only full size windows are considered).
-* `padding = 'VALID'`: Round up (partial windows are included).
+where the indices also take into consideration the padding values. Please refer
+to the `Convolution` section for details about the padding calculation.
 
 @@avg_pool
 @@max_pool
@@ -167,8 +184,13 @@ classes when using one of the sampled loss functions above.
 @@compute_accidental_hits
 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+from six.moves import xrange  # pylint: disable=redefined-builtin
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import types
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import candidate_sampling_ops
@@ -343,7 +365,8 @@ def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
 
   Args:
     x: A tensor.
-    keep_prob: A Python float. The probability that each element is kept.
+    keep_prob: A scalar `Tensor` with the same type as x. The probability
+      that each element is kept.
     noise_shape: A 1-D `Tensor` of type `int32`, representing the
       shape for randomly generated keep/drop flags.
     seed: A Python integer. Used to create random seeds. See
@@ -357,10 +380,15 @@ def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
   Raises:
     ValueError: If `keep_prob` is not in `(0, 1]`.
   """
-  if not (0 < keep_prob <= 1):
-    raise ValueError("Expected keep_prob in (0, 1], got %g" % keep_prob)
   with ops.op_scope([x], name, "dropout") as name:
     x = ops.convert_to_tensor(x, name="x")
+    if isinstance(keep_prob, float) and not(0 < keep_prob <= 1):
+      raise ValueError("keep_prob must be a scalar tensor or a float in the "
+                       "range (0, 1], got %g" % keep_prob)
+    keep_prob = ops.convert_to_tensor(
+        keep_prob, dtype=x.dtype, name="keep_prob")
+    keep_prob.get_shape().assert_is_compatible_with(tensor_shape.scalar())
+
     noise_shape = noise_shape or array_ops.shape(x)
     # uniform [keep_prob, 1.0 + keep_prob)
     random_tensor = keep_prob
@@ -368,7 +396,9 @@ def dropout(x, keep_prob, noise_shape=None, seed=None, name=None):
         noise_shape, seed=seed, dtype=x.dtype)
     # 0. if [keep_prob, 1.0) and 1. if [1.0, 1.0 + keep_prob)
     binary_tensor = math_ops.floor(random_tensor)
-    return x * (1.0 / keep_prob) * binary_tensor
+    ret = x * math_ops.inv(keep_prob) * binary_tensor
+    ret.set_shape(x.get_shape())
+    return ret
 
 
 def depthwise_conv2d(input, filter, strides, padding, name=None):
@@ -526,15 +556,24 @@ def moments(x, axes, name=None):
     name: Name used to scope the operations that compute the moments.
 
   Returns:
-    Two `Tensors`: `mean` and `variance`.
+    Two `Tensor` objects: `mean` and `variance`.
   """
   with ops.op_scope([x, axes], name, "moments"):
     x = ops.convert_to_tensor(x, name="x")
-    divisor = 1.0
-    for d in xrange(len(x.get_shape())):
-      if d in axes:
+    x_shape = x.get_shape()
+    if all(x_shape[d].value is not None for d in axes):
+      # The shape is known in the relevant axes, so we can statically
+      # compute the divisor.
+      divisor = 1.0
+      for d in set(axes):
         divisor *= x.get_shape()[d].value
-    divisor = constant_op.constant(1.0 / divisor, x.dtype, name="divisor")
+      divisor = constant_op.constant(1.0 / divisor, x.dtype, name="divisor")
+    else:
+      divisor = constant_op.constant(1.0, dtype=x.dtype)
+      x_dynamic_shape = array_ops.shape(x)
+      for d in set(axes):
+        divisor *= math_ops.cast(x_dynamic_shape[d], x.dtype)
+      divisor = math_ops.inv(divisor, name="divisor")
     axes = constant_op.constant(axes, name="axes")
     # Note: We do not use Mean here because it is very slow on GPU.
     # Note 2: The expression below is potentially more stable.

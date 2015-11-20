@@ -1,4 +1,8 @@
 """Tests for tensorflow.ops.io_ops."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os.path
 import time
 
@@ -6,6 +10,7 @@ import tensorflow.python.platform
 
 import tensorflow as tf
 import numpy as np
+import six
 
 from tensorflow.python.platform import gfile
 
@@ -29,7 +34,7 @@ class SaverTest(tf.test.TestCase):
 
       # Save the initialized values in the file at "save_path"
       val = save.save(sess, save_path)
-      self.assertTrue(isinstance(val, basestring))
+      self.assertTrue(isinstance(val, six.string_types))
       self.assertEqual(save_path, val)
 
     # Start a second session.  In that session the parameter nodes
@@ -80,7 +85,7 @@ class SaverTest(tf.test.TestCase):
 
       # Save the initialized values in the file at "save_path"
       val = save.save(sess, save_path)
-      self.assertTrue(isinstance(val, basestring))
+      self.assertTrue(isinstance(val, six.string_types))
       self.assertEqual(save_path, val)
 
       with self.test_session() as sess:
@@ -127,7 +132,7 @@ class SaverTest(tf.test.TestCase):
 
       # Save the initialized values in the file at "save_path"
       val = save.save(sess, save_path)
-      self.assertTrue(isinstance(val, basestring))
+      self.assertTrue(isinstance(val, six.string_types))
       self.assertEqual(save_path, val)
 
     # Start a second session.  In that session the variables
@@ -304,6 +309,10 @@ class SaveRestoreShardedTest(tf.test.TestCase):
       save.restore(sess, save_path + "-?????-of-?????")
       self.assertEqual(10, v0.eval())
       self.assertEqual(20, v1.eval())
+
+    self.assertEqual(
+        tf.train.latest_checkpoint(self.get_temp_dir()),
+        os.path.join(self.get_temp_dir(), "sharded-?????-of-00002"))
 
   def testSaverDef(self):
     with self.test_session():
@@ -513,7 +522,7 @@ class SaveRestoreWithVariableNameMap(tf.test.TestCase):
       # Save the initialized values in the file at "save_path"
       # Use a variable name map to set the saved tensor names
       val = save.save(sess, save_path)
-      self.assertTrue(isinstance(val, basestring))
+      self.assertTrue(isinstance(val, six.string_types))
       self.assertEqual(save_path, val)
 
       # Verify that the original names are not in the Saved file

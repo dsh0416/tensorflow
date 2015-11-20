@@ -1,4 +1,8 @@
 """Maintain moving averages of parameters."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import types
 from tensorflow.python.ops import array_ops
@@ -41,7 +45,7 @@ def assign_moving_average(variable, value, decay, name=None):
 
 
 class ExponentialMovingAverage(object):
-  """Maintains moving averages of variables by employing and exponential decay.
+  """Maintains moving averages of variables by employing an exponential decay.
 
   When training a model, it is often beneficial to maintain moving averages of
   the trained parameters.  Evaluations that use averaged parameters sometimes
@@ -191,13 +195,21 @@ class ExponentialMovingAverage(object):
       if var in self._averages:
         raise ValueError("Moving average already computed for: %s" % var)
       with ops.name_scope(var.op.name + "/" + self._name) as scope:
-        with ops.device(var.device):
-          if isinstance(var, variables.Variable):
-            initial_value = var.initialized_value()
-          else:
-            initial_value = array_ops.zeros(var.get_shape().as_list())
-          avg = variables.Variable(initial_value, name=scope, trainable=False)
-          self._averages[var] = avg
+        # For variables: to lower communication bandwidth across devices we keep
+        # the moving averages on the same device as the variables. For other
+        # tensors, we rely on the existing device allocation mechanism.
+        if isinstance(var, variables.Variable):
+          with ops.device(var.device):
+            avg = variables.Variable(var.initialized_value(),
+                                     name=scope, trainable=False)
+        elif var.op.type == "Variable":
+          with ops.device(var.device):
+            avg = variables.Variable(array_ops.zeros(var.get_shape().as_list()),
+                                     name=scope, trainable=False)
+        else:
+          avg = variables.Variable(array_ops.zeros(var.get_shape().as_list()),
+                                   name=scope, trainable=False)
+        self._averages[var] = avg
     with ops.name_scope(self._name) as scope:
       decay = ops.convert_to_tensor(self._decay, name="decay")
       if self._num_updates is not None:

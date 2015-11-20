@@ -4,14 +4,14 @@
 
 #include <vector>
 
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/kernels/ops_util.h"
 #include "tensorflow/core/kernels/split_op.h"
-#include "tensorflow/core/public/status.h"
 #include "tensorflow/core/lib/gtl/array_slice.h"
+#include "tensorflow/core/public/status.h"
 #include "tensorflow/core/public/tensor.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
 namespace tensorflow {
 
@@ -63,8 +63,8 @@ class UnpackOp : public OpKernel {
                      context->allocate_output(i, output_shape, &output));
       auto output_shaped = output->shaped<T, 3>({1, 1, output_size});
 
-      Eigen::DSizes<ptrdiff_t, 3> indices{0, i, 0};
-      Eigen::DSizes<ptrdiff_t, 3> sizes{1, 1, output_size};
+      Eigen::DSizes<Eigen::DenseIndex, 3> indices{0, i, 0};
+      Eigen::DSizes<Eigen::DenseIndex, 3> sizes{1, 1, output_size};
       functor::Split<Device, T>()(context->eigen_device<Device>(),
                                   output_shaped, input_reshaped, indices,
                                   sizes);

@@ -52,11 +52,17 @@ Alternatively:
       self.assertProto2SameElements(a, c)
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import copy
 
 from google.protobuf import descriptor
 from google.protobuf import message
 from google.protobuf import text_format
+import six
+from six.moves import xrange  # pylint: disable=redefined-builtin
 
 
 def assertProto2Equal(self, a, b, check_initialized=True,
@@ -76,7 +82,7 @@ def assertProto2Equal(self, a, b, check_initialized=True,
       numbers before comparison.
     msg: if specified, is used as the error message on failure
   """
-  if isinstance(a, basestring):
+  if isinstance(a, six.string_types):
     a = text_format.Merge(a, b.__class__())
 
   for pb in a, b:
@@ -115,7 +121,7 @@ def assertProto2SameElements(self, a, b, number_matters=False,
       numbers before comparison.
     msg: if specified, is used as the error message on failure
   """
-  if isinstance(a, basestring):
+  if isinstance(a, six.string_types):
     a = text_format.Merge(a, b.__class__())
   else:
     a = copy.deepcopy(a)
@@ -146,7 +152,7 @@ def assertProto2Contains(self, a, b,  # pylint: disable=invalid-name
     check_initialized: boolean, whether to fail if b isn't initialized
     msg: if specified, is used as the error message on failure
   """
-  if isinstance(a, basestring):
+  if isinstance(a, six.string_types):
     a = text_format.Merge(a, b.__class__())
   else:
     a = copy.deepcopy(a)
@@ -201,7 +207,7 @@ def NormalizeRepeatedFields(pb, dedupe=True):
       # This is a map, only recurse if the values have a message type.
       if (desc.message_type.fields_by_number[2].type ==
           descriptor.FieldDescriptor.TYPE_MESSAGE):
-        for v in values.itervalues():
+        for v in six.itervalues(values):
           NormalizeRepeatedFields(v, dedupe=dedupe)
     else:
       if (desc.type == descriptor.FieldDescriptor.TYPE_MESSAGE or
@@ -256,7 +262,7 @@ def NormalizeNumberFields(pb):
     if desc.type in (descriptor.FieldDescriptor.TYPE_INT64,
                      descriptor.FieldDescriptor.TYPE_UINT64,
                      descriptor.FieldDescriptor.TYPE_SINT64):
-      normalized_values = [long(x) for x in values]
+      normalized_values = [int(x) for x in values]
     elif desc.type in (descriptor.FieldDescriptor.TYPE_INT32,
                        descriptor.FieldDescriptor.TYPE_UINT32,
                        descriptor.FieldDescriptor.TYPE_SINT32,
@@ -282,7 +288,7 @@ def NormalizeNumberFields(pb):
         # This is a map, only recurse if the values have a message type.
         if (desc.message_type.fields_by_number[2].type ==
             descriptor.FieldDescriptor.TYPE_MESSAGE):
-          for v in values.itervalues():
+          for v in six.itervalues(values):
             NormalizeNumberFields(v)
       else:
         for v in values:
@@ -293,7 +299,7 @@ def NormalizeNumberFields(pb):
 
 
 def _IsRepeatedContainer(value):
-  if isinstance(value, basestring):
+  if isinstance(value, six.string_types):
     return False
   try:
     iter(value)
@@ -331,7 +337,7 @@ def Proto2Cmp(a, b):
     if isinstance(pb, message.Message):
       return dict((desc.number, value) for desc, value in pb.ListFields())
     elif _IsRepeatedContainer(pb):
-      return dict(enumerate(list(pb)))
+      return dict(enumerate(pb))
     else:
       return pb
 
@@ -344,7 +350,7 @@ def Proto2Cmp(a, b):
   # this list performs double duty: it compares two messages by tag value *or*
   # two repeated fields by element, in order. the magic is in the format()
   # function, which converts them both to the same easily comparable format.
-  for tag in sorted(set(a.keys() + b.keys())):
+  for tag in sorted(set(a.keys()) | set(b.keys())):
     if tag not in a:
       return -1  # b is greater
     elif tag not in b:

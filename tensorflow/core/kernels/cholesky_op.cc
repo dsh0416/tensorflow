@@ -4,6 +4,7 @@
 
 #include <cmath>
 
+#include "third_party/eigen3/Eigen/Cholesky"
 #include "tensorflow/core/framework/kernel_def_builder.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/kernels/linalg_ops_common.h"
@@ -11,15 +12,15 @@
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/port.h"
 #include "tensorflow/core/public/tensor_shape.h"
-#include "third_party/eigen3/Eigen/Cholesky"
 
 namespace tensorflow {
 
 template <class Scalar, bool SupportsBatchOperationT>
-class CholeskyOp : public LinearAlgebraOp<Scalar, SupportsBatchOperationT> {
+class CholeskyOp
+    : public UnaryLinearAlgebraOp<Scalar, SupportsBatchOperationT> {
  public:
   explicit CholeskyOp(OpKernelConstruction* context)
-      : LinearAlgebraOp<Scalar, SupportsBatchOperationT>(context) {}
+      : UnaryLinearAlgebraOp<Scalar, SupportsBatchOperationT>(context) {}
 
   TensorShape GetOutputMatrixShape(
       const TensorShape& input_matrix_shape) override {
@@ -36,9 +37,10 @@ class CholeskyOp : public LinearAlgebraOp<Scalar, SupportsBatchOperationT> {
     }
   }
 
-  using typename LinearAlgebraOp<Scalar, SupportsBatchOperationT>::MatrixMap;
   using
-      typename LinearAlgebraOp<Scalar, SupportsBatchOperationT>::ConstMatrixMap;
+      typename UnaryLinearAlgebraOp<Scalar, SupportsBatchOperationT>::MatrixMap;
+  using typename UnaryLinearAlgebraOp<Scalar,
+                                      SupportsBatchOperationT>::ConstMatrixMap;
 
   void ComputeMatrix(OpKernelContext* context, const ConstMatrixMap& input,
                      MatrixMap* output) override {

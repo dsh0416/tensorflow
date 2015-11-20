@@ -1,6 +1,11 @@
 """A class to store named variables and a scope operator to manage sharing."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import contextlib
+import six
 
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
@@ -72,14 +77,14 @@ class _VariableStore(object):
       found_var = self._vars[name]
       if not shape.is_compatible_with(found_var.get_shape()):
         raise ValueError("Trying to share variable %s, but specified shape %s"
-                         " and found shape %s." % (name, str(shape),
-                                                   str(found_var.get_shape())))
+                         " and found shape %s." % (name, shape,
+                                                   found_var.get_shape()))
       if not dtype.is_compatible_with(found_var.dtype):
         dtype_str = dtype.name
         found_type_str = found_var.dtype.name
         raise ValueError("Trying to share variable %s, but specified dtype %s"
-                         " and found dtype %s." % (name, str(dtype_str),
-                                                   str(found_type_str)))
+                         " and found dtype %s." % (name, dtype_str,
+                                                   found_type_str))
       return found_var
 
     # The code below handles only the case of creating a new variable.
@@ -97,7 +102,7 @@ class _VariableStore(object):
                            collections=collections)
     self._vars[name] = v
     logging.info("Created variable %s with shape %s and init %s", v.name,
-                 format(shape), str(initializer))
+                 format(shape), initializer)
     return v
 
 
@@ -292,14 +297,14 @@ def variable_scope(name_or_scope, reuse=None, initializer=None):
       a reuse scope, or if reuse is not `None` or `True`.
     TypeError: when the types of some arguments are not appropriate.
   """
-  if not isinstance(name_or_scope, (_VariableScope, basestring)):
+  if not isinstance(name_or_scope, (_VariableScope,) + six.string_types):
     raise TypeError("VariableScope: name_scope must be a string or "
                     "VariableScope.")
   if reuse not in [None, True]:
     raise ValueError("VariableScope reuse parameter must be True or None.")
   if not reuse and isinstance(name_or_scope, (_VariableScope)):
     logging.info("Passing VariableScope to a non-reusing scope, intended?")
-  if reuse and isinstance(name_or_scope, (basestring)):
+  if reuse and isinstance(name_or_scope, six.string_types):
     logging.info("Re-using string-named scope, consider capturing as object.")
   get_variable_scope()  # Ensure that a default exists, then get a pointer.
   default_varscope = ops.get_collection(_VARSCOPE_KEY)

@@ -1,10 +1,15 @@
 # pylint: disable=g-long-lambda
 """Tests for tensorflow.ops.control_flow_ops."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import math
 
 import tensorflow.python.platform
 
 import numpy as np
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 from tensorflow.python.ops import control_flow_ops
@@ -29,7 +34,7 @@ def check_consumers(graph):
     for v in op.inputs:
       cnt = consumer_count.get(v, 0)
       consumer_count[v] = cnt + 1
-  for k, v in consumer_count.iteritems():
+  for k, v in consumer_count.items():
     if len(k.consumers()) != v:
       return False
   return True
@@ -681,6 +686,29 @@ class ControlFlowTest(tf.test.TestCase):
   def testWhile_Gpu_2(self):
     self._testWhile_Gpu_1(use_gpu=False)
     self._testWhile_Gpu_1(use_gpu=True)
+
+  def _testWhileNested_1(self, use_gpu):
+    with self.test_session(use_gpu=use_gpu):
+      n = tf.constant(0)
+      def cpu_sum(s):
+        c = lambda i, s: tf.less(i, 10)
+        def b(i, s):
+          i1 = tf.add(i, 1)
+          with tf.device("/cpu:0"):
+            s1 = tf.add(i, s)
+          return i1, s1
+        _, r_s = control_flow_ops.While(c, b, [n, s])
+        return r_s
+      c = lambda x: tf.less(x, 200)
+      b = lambda x: tf.add(x, cpu_sum(n))
+      r = control_flow_ops.While(c, b, [n])
+
+      result = r.eval()
+    self.assertEqual(225, result)
+
+  def testWhileNested_1(self):
+    self._testWhileNested_1(use_gpu=False)
+    self._testWhileNested_1(use_gpu=True)
 
   def testWhileWithControl_1(self):
     with self.test_session():

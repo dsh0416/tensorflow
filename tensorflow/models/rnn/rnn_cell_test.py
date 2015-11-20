@@ -1,9 +1,14 @@
 """Tests for RNN cells."""
 
 # pylint: disable=g-bad-import-order,unused-import
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow.python.platform
 
 import numpy as np
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 from tensorflow.models.rnn import rnn_cell
@@ -113,7 +118,7 @@ class RNNCellTest(tf.test.TestCase):
       with tf.variable_scope("root", initializer=tf.constant_initializer(0.5)):
         x = tf.zeros([1, 3])
         m = tf.zeros([1, 3])
-        keep = tf.zeros([1]) + 1
+        keep = tf.zeros([]) + 1
         g, new_m = rnn_cell.DropoutWrapper(rnn_cell.GRUCell(3),
                                            keep, keep)(x, m)
         sess.run([tf.variables.initialize_all_variables()])

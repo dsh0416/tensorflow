@@ -37,10 +37,11 @@ To compile on GPU:
   bazel build -c opt tensorflow --config=cuda \
     tensorflow/models/rnn/ptb:ptb_word_lm
 To run:
-  ./bazel-bin/.../ptb_word_lm \
-    --data_path=/tmp/simple-examples/data/ --alsologtostderr
+  ./bazel-bin/.../ptb_word_lm --data_path=/tmp/simple-examples/data/
 
 """
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import time
@@ -218,7 +219,7 @@ class LargeConfig(object):
 
 def run_epoch(session, m, data, eval_op, verbose=False):
   """Runs the model on the given data."""
-  epoch_size = ((len(data) / m.batch_size) - 1) / m.num_steps
+  epoch_size = ((len(data) // m.batch_size) - 1) // m.num_steps
   start_time = time.time()
   costs = 0.0
   iters = 0
@@ -232,7 +233,7 @@ def run_epoch(session, m, data, eval_op, verbose=False):
     costs += cost
     iters += m.num_steps
 
-    if verbose and step % (epoch_size / 10) == 10:
+    if verbose and step % (epoch_size // 10) == 10:
       print("%.3f perplexity: %.3f speed: %.0f wps" %
             (step * 1.0 / epoch_size, np.exp(costs / iters),
              iters * m.batch_size / (time.time() - start_time)))

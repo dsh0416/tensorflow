@@ -1,4 +1,8 @@
 """Tests for PrecisionOp."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow.python.platform
 
 import numpy as np
@@ -30,6 +34,11 @@ class InTopKTest(tf.test.TestCase):
     predictions = [[0.1, 0.3, 0.2, 0.2], [0.1, 0.3, 0.2, 0.2]]
     target = [2, 3]
     self._validateInTopK(predictions, target, 2, [True, True])
+
+  def testInTop2_int64Target(self):
+    predictions = [[0.1, 0.3, 0.2, 0.4], [0.1, 0.2, 0.3, 0.4]]
+    target = np.asarray([0, 2]).astype(np.int64)
+    self._validateInTopK(predictions, target, 2, [False, True])
 
 
 if __name__ == "__main__":

@@ -1,5 +1,9 @@
 """Summary Operations."""
 # pylint: disable=wildcard-import,protected-access
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.ops import gen_summary_ops
@@ -24,8 +28,8 @@ def histogram_summary(tag, values, collections=None, name=None):
 
   Args:
     tag: A `string` `Tensor`. 0-D.  Tag to use for the summary value.
-    values: A `float32` `Tensor`. Any shape. Values to use to build the
-      histogram.
+    values: A `float32` or `float64` `Tensor`. Any shape. Values to use to
+      build the histogram.
     collections: Optional list of graph collections keys. The new summary op is
       added to these collections. Defaults to `[GraphKeys.SUMMARIES]`.
     name: A name for the operation (optional).

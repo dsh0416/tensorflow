@@ -1,13 +1,15 @@
 """Utilities for downloading data from WMT, tokenizing, vocabularies."""
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import gzip
 import os
 import re
 import tarfile
-import urllib
 
 from tensorflow.python.platform import gfile
+from six.moves import urllib
 
 # Special vocabulary symbols - we always put them at the start.
 _PAD = "_PAD"
@@ -38,7 +40,7 @@ def maybe_download(directory, filename, url):
   filepath = os.path.join(directory, filename)
   if not os.path.exists(filepath):
     print("Downloading %s to %s" % (url, filepath))
-    filepath, _ = urllib.urlretrieve(url, filepath)
+    filepath, _ = urllib.request.urlretrieve(url, filepath)
     statinfo = os.stat(filepath)
     print("Succesfully downloaded", filename, statinfo.st_size, "bytes")
   return filepath
@@ -254,7 +256,7 @@ def prepare_wmt_data(data_dir, en_vocabulary_size, fr_vocabulary_size):
   fr_train_ids_path = train_path + (".ids%d.fr" % fr_vocabulary_size)
   en_train_ids_path = train_path + (".ids%d.en" % en_vocabulary_size)
   data_to_token_ids(train_path + ".fr", fr_train_ids_path, fr_vocab_path)
-  data_to_token_ids(train_path + ".en", fr_train_ids_path, fr_vocab_path)
+  data_to_token_ids(train_path + ".en", en_train_ids_path, en_vocab_path)
 
   # Create token ids for the development data.
   fr_dev_ids_path = dev_path + (".ids%d.fr" % fr_vocabulary_size)

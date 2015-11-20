@@ -1,6 +1,11 @@
 """Operations for clipping (gradient, weight) tensors to min/max values."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import collections
+
+import six
 
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import types
@@ -71,7 +76,7 @@ def clip_by_norm(t, clip_norm, name=None):
 
     # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
     l2norm_inv = math_ops.rsqrt(
-        math_ops.reduce_sum(t * t, math_ops.range(0, array_ops.rank(t))))
+        math_ops.reduce_sum(t * t, math_ops.range(array_ops.rank(t))))
     tclip = array_ops.identity(t * clip_norm * math_ops.minimum(
         l2norm_inv, constant_op.constant(1.0 / clip_norm)), name=name)
 
@@ -99,7 +104,7 @@ def global_norm(t_list, name=None):
     TypeError: If `t_list` is not a sequence.
   """
   if (not isinstance(t_list, collections.Sequence)
-      or isinstance(t_list, basestring)):
+      or isinstance(t_list, six.string_types)):
     raise TypeError("t_list should be a sequence")
   t_list = list(t_list)
   with ops.op_scope(t_list, name, "global_norm") as name:
@@ -161,7 +166,7 @@ def clip_by_global_norm(t_list, clip_norm, use_norm=None, name=None):
     TypeError: If `t_list` is not a sequence.
   """
   if (not isinstance(t_list, collections.Sequence)
-      or isinstance(t_list, basestring)):
+      or isinstance(t_list, six.string_types)):
     raise TypeError("t_list should be a sequence")
   t_list = list(t_list)
   if use_norm is None:
@@ -170,7 +175,8 @@ def clip_by_global_norm(t_list, clip_norm, use_norm=None, name=None):
   with ops.op_scope(t_list + [clip_norm], name, "clip_by_global_norm") as name:
     # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
     scale = clip_norm * math_ops.minimum(
-        1.0 / use_norm, constant_op.constant(1.0 / clip_norm))
+        1.0 / use_norm,
+        constant_op.constant(1.0 / clip_norm, dtype=use_norm.dtype))
 
     values = [
         ops.convert_to_tensor(
@@ -225,7 +231,7 @@ def clip_by_average_norm(t, clip_norm, name=None):
     # L2-norm per element
     n_element = math_ops.cast(array_ops.size(t), types.float32)
     l2norm_inv = math_ops.rsqrt(
-        math_ops.reduce_sum(t * t, math_ops.range(0, array_ops.rank(t))))
+        math_ops.reduce_sum(t * t, math_ops.range(array_ops.rank(t))))
     tclip = array_ops.identity(
         t * clip_norm * math_ops.minimum(
             l2norm_inv * n_element, constant_op.constant(1.0 / clip_norm)),

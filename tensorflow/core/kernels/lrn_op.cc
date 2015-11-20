@@ -4,12 +4,12 @@
 #define EIGEN_USE_THREADS
 
 #include "tensorflow/core/framework/op_kernel.h"
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/kernels/ops_util.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/public/tensor.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
-#ifndef __ANDROID__
+#if !defined(__ANDROID__)
 #include "tensorflow/core/util/work_sharder.h"
 #endif
 
@@ -23,8 +23,8 @@ static void GetBandMatrix(int depth, int64 depth_radius,
   for (int row = 0; row < depth; ++row) {
     const int begin = std::max<int>(0, row - depth_radius);
     const int end = std::min<int64>(depth, row + depth_radius + 1);
-    Eigen::DSizes<ptrdiff_t, 2> start(row, begin);
-    Eigen::DSizes<ptrdiff_t, 2> sizes(1, end - begin);
+    Eigen::DSizes<Eigen::DenseIndex, 2> start(row, begin);
+    Eigen::DSizes<Eigen::DenseIndex, 2> sizes(1, end - begin);
     result->slice(start, sizes).setConstant(1.0f);
   }
 }
@@ -51,7 +51,7 @@ class LRNOp : public OpKernel {
                    context->allocate_output(
                        0, TensorShape({batch, rows, cols, depth}), &output));
 
-#ifdef __ANDROID__
+#if !defined(__ANDROID__)
     MognetLRN(in, batch, rows, cols, depth, output);
 #else
     const int nodes = cols * rows;
@@ -123,7 +123,7 @@ class LRNOp : public OpKernel {
 
 REGISTER_KERNEL_BUILDER(Name("LRN").Device(DEVICE_CPU), LRNOp);
 
-#ifndef __ANDROID__
+#if !defined(__ANDROID__)
 
 class LRNGradOp : public OpKernel {
  public:
@@ -223,6 +223,6 @@ class LRNGradOp : public OpKernel {
 
 REGISTER_KERNEL_BUILDER(Name("LRNGrad").Device(DEVICE_CPU), LRNGradOp);
 
-#endif  // __ANDROID__
+#endif  // !defined(__ANDROID__)
 
 }  // namespace tensorflow

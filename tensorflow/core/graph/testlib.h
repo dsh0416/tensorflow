@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "tensorflow/core/platform/port.h"
 #include "tensorflow/core/graph/graph.h"
 #include "tensorflow/core/graph/types.h"
+#include "tensorflow/core/platform/port.h"
 #include "tensorflow/core/public/tensor.h"
 #include "tensorflow/core/public/tensor_shape.h"
 
@@ -64,11 +64,9 @@ Node* Unary(Graph* g, const string& func, Node* input, int index = 0);
 Node* Identity(Graph* g, Node* input, int index = 0);
 
 // Adds a binary function "func" node in "g" taking "in0" and "in1".
-// Requires that "func" name an attr-style Op.
 Node* Binary(Graph* g, const string& func, Node* in0, Node* in1);
 
 // Adds a function "func" node in "g" taking inputs "ins".
-// Requires that "func" name an attr-style Op.
 Node* Multi(Graph* g, const string& func, gtl::ArraySlice<Node*> ins);
 
 // Adds a binary add node in "g" doing in0 + in1.

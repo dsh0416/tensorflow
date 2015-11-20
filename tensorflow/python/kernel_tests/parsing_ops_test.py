@@ -1,5 +1,9 @@
 """Tests for tensorflow.ops.parsing_ops."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import itertools
 
 import tensorflow.python.platform
@@ -33,7 +37,7 @@ def _compare_output_to_expected(
   tester.assertEqual(set(dict_tensors.keys()), set(expected_tensors.keys()))
 
   i = 0  # Index into the flattened output of session.run()
-  for k, v in dict_tensors.iteritems():
+  for k, v in dict_tensors.items():
     expected_v = expected_tensors[k]
     tf.logging.info("Comparing key: %s", k)
     if isinstance(v, tf.SparseTensor):
@@ -85,13 +89,14 @@ class ParseExampleTest(tf.test.TestCase):
           sess.run(result)
 
   def testEmptySerializedWithAllDefaults(self):
-    dense_keys = ["a", "b", "c"]
+    cname = "c:has_a_tricky_name"
+    dense_keys = ["a", "b", cname]
     dense_shapes = [(1, 3), (3, 3), (2,)]
     dense_types = [tf.int64, tf.string, tf.float32]
     dense_defaults = {
         "a": [0, 42, 0],
         "b": np.random.rand(3, 3).astype(np.str),
-        "c": np.random.rand(2).astype(np.float32),
+        cname: np.random.rand(2).astype(np.float32),
     }
 
     expected_st_a = (  # indices, values, shape
@@ -103,7 +108,7 @@ class ParseExampleTest(tf.test.TestCase):
         "st_a": expected_st_a,
         "a": np.array(2 * [[dense_defaults["a"]]]),
         "b": np.array(2 * [dense_defaults["b"]]),
-        "c": np.array(2 * [dense_defaults["c"]]),
+        cname: np.array(2 * [dense_defaults[cname]]),
     }
 
     self._test(
@@ -210,14 +215,15 @@ class ParseExampleTest(tf.test.TestCase):
         }, expected_output)
 
   def testSerializedContainingDense(self):
+    bname = "b*has+a:tricky_name"
     original = [
         example(features=features({
             "a": float_feature([1, 1]),
-            "b": bytes_feature(["b0_str"]),
+            bname: bytes_feature(["b0_str"]),
         })),
         example(features=features({
             "a": float_feature([-1, -1]),
-            "b": bytes_feature(["b1"]),
+            bname: bytes_feature(["b1"]),
         }))
     ]
 
@@ -227,14 +233,14 @@ class ParseExampleTest(tf.test.TestCase):
 
     expected_output = {
         "a": np.array([[1, 1], [-1, -1]], dtype=np.float32).reshape(2, 1, 2, 1),
-        "b": np.array(["b0_str", "b1"], dtype=np.str).reshape(2, 1, 1, 1, 1),
+        bname: np.array(["b0_str", "b1"], dtype=np.str).reshape(2, 1, 1, 1, 1),
     }
 
     # No defaults, values required
     self._test(
         {
             "serialized": tf.convert_to_tensor(serialized),
-            "dense_keys": ["a", "b"],
+            "dense_keys": ["a", bname],
             "dense_types": [tf.float32, tf.string],
             "dense_shapes": dense_shapes,
         }, expected_output)

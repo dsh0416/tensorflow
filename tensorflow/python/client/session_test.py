@@ -1,10 +1,16 @@
 """Tests for tensorflow.python.client.session.Session."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import threading
 import time
 
 import tensorflow.python.platform
 
 import numpy as np
+import six
+from six.moves import xrange  # pylint: disable=redefined-builtin
 
 from tensorflow.core.framework import config_pb2
 from tensorflow.core.lib.core import error_codes_pb2
@@ -439,6 +445,12 @@ class SessionTest(test_util.TensorFlowTestCase):
       sess.close()
       t.join()
 
+  def testUseEmptyGraph(self):
+    with session.Session() as sess:
+      with self.assertRaisesWithPredicateMatch(
+          RuntimeError, lambda e: 'The Session graph is empty.' in str(e)):
+        sess.run([])
+
   def testNotEntered(self):
     # pylint: disable=protected-access
     self.assertEqual(ops._default_session_stack.get_default(), None)
@@ -546,10 +558,79 @@ class SessionTest(test_util.TensorFlowTestCase):
       self.assertEqual(c_list[0], out[0])
       self.assertEqual(c_list[1], out[1])
 
+  def testStringFeedWithUnicode(self):
+    with session.Session():
+      c_list = [u'\n\x01\x00', u'\n\x00\x01']
+      feed_t = array_ops.placeholder(dtype=types.string, shape=[2])
+      c = array_ops.identity(feed_t)
+
+      out = c.eval(feed_dict={feed_t: c_list})
+      self.assertEqual(c_list[0], out[0].decode('utf-8'))
+      self.assertEqual(c_list[1], out[1].decode('utf-8'))
+
+      out = c.eval(feed_dict={feed_t: np.array(c_list, dtype=np.object)})
+      self.assertEqual(c_list[0], out[0].decode('utf-8'))
+      self.assertEqual(c_list[1], out[1].decode('utf-8'))
+
   def testInvalidTargetFails(self):
     with self.assertRaises(RuntimeError):
-      session.Session("INVALID_TARGET")
+      session.Session('INVALID_TARGET')
 
+  def testFetchByNameDifferentStringTypes(self):
+    with session.Session() as sess:
+      c = constant_op.constant(42.0, name='c')
+      d = constant_op.constant(43.0, name=u'd')
+      e = constant_op.constant(44.0, name=b'e')
+      f = constant_op.constant(45.0, name=r'f')
+
+      self.assertTrue(isinstance(c.name, six.text_type))
+      self.assertTrue(isinstance(d.name, six.text_type))
+      self.assertTrue(isinstance(e.name, six.text_type))
+      self.assertTrue(isinstance(f.name, six.text_type))
+
+      self.assertEqual(42.0, sess.run('c:0'))
+      self.assertEqual(42.0, sess.run(u'c:0'))
+      self.assertEqual(42.0, sess.run(b'c:0'))
+      self.assertEqual(42.0, sess.run(r'c:0'))
+
+      self.assertEqual(43.0, sess.run('d:0'))
+      self.assertEqual(43.0, sess.run(u'd:0'))
+      self.assertEqual(43.0, sess.run(b'd:0'))
+      self.assertEqual(43.0, sess.run(r'd:0'))
+
+      self.assertEqual(44.0, sess.run('e:0'))
+      self.assertEqual(44.0, sess.run(u'e:0'))
+      self.assertEqual(44.0, sess.run(b'e:0'))
+      self.assertEqual(44.0, sess.run(r'e:0'))
+
+      self.assertEqual(45.0, sess.run('f:0'))
+      self.assertEqual(45.0, sess.run(u'f:0'))
+      self.assertEqual(45.0, sess.run(b'f:0'))
+      self.assertEqual(45.0, sess.run(r'f:0'))
+
+  def testIncorrectGraph(self):
+    with ops.Graph().as_default() as g_1:
+      c_1 = constant_op.constant(1.0, name='c')
+
+    with ops.Graph().as_default() as g_2:
+      c_2 = constant_op.constant(2.0, name='c')
+
+    self.assertEqual('c', c_1.op.name)
+    self.assertEqual('c', c_2.op.name)
+
+    with session.Session(graph=g_1) as sess_1:
+      self.assertEqual(1.0, sess_1.run(c_1))
+      with self.assertRaises(ValueError):
+        sess_1.run(c_2)
+      with self.assertRaises(ValueError):
+        sess_1.run(c_2.op)
+
+    with session.Session(graph=g_2) as sess_2:
+      with self.assertRaises(ValueError):
+        sess_2.run(c_1)
+      with self.assertRaises(ValueError):
+        sess_2.run(c_1.op)
+      self.assertEqual(2.0, sess_2.run(c_2))
 
 if __name__ == '__main__':
   googletest.main()

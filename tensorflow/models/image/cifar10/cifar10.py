@@ -15,16 +15,20 @@ Summary of available functions:
  # Create a graph to run one step of training with respect to the loss.
  train_op = train(loss, global_step)
 """
-from __future__ import print_function
 # pylint: disable=missing-docstring
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import gzip
 import os
 import re
 import sys
 import tarfile
-import urllib
 
 import tensorflow.python.platform
+from six.moves import urllib
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 from tensorflow.models.image.cifar10 import cifar10_input
@@ -285,7 +289,7 @@ def inference(images):
                                          stddev=1e-4, wd=0.0)
     conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
-    bias = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape().as_list())
+    bias = tf.nn.bias_add(conv, biases)
     conv1 = tf.nn.relu(bias, name=scope.name)
     _activation_summary(conv1)
 
@@ -302,7 +306,7 @@ def inference(images):
                                          stddev=1e-4, wd=0.0)
     conv = tf.nn.conv2d(norm1, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
-    bias = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape().as_list())
+    bias = tf.nn.bias_add(conv, biases)
     conv2 = tf.nn.relu(bias, name=scope.name)
     _activation_summary(conv2)
 
@@ -362,7 +366,7 @@ def loss(logits, labels):
   # Reshape the labels into a dense Tensor of
   # shape [batch_size, NUM_CLASSES].
   sparse_labels = tf.reshape(labels, [FLAGS.batch_size, 1])
-  indices = tf.reshape(tf.range(0, FLAGS.batch_size, 1), [FLAGS.batch_size, 1])
+  indices = tf.reshape(tf.range(FLAGS.batch_size), [FLAGS.batch_size, 1])
   concated = tf.concat(1, [indices, sparse_labels])
   dense_labels = tf.sparse_to_dense(concated,
                                     [FLAGS.batch_size, NUM_CLASSES],
@@ -474,7 +478,8 @@ def maybe_download_and_extract():
       sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename,
           float(count * block_size) / float(total_size) * 100.0))
       sys.stdout.flush()
-    filepath, _ = urllib.urlretrieve(DATA_URL, filepath, reporthook=_progress)
+    filepath, _ = urllib.request.urlretrieve(DATA_URL, filepath,
+                                             reporthook=_progress)
     print()
     statinfo = os.stat(filepath)
     print('Succesfully downloaded', filename, statinfo.st_size, 'bytes.')

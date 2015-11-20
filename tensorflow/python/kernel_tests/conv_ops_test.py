@@ -1,6 +1,7 @@
 """Functional tests for convolutional operations."""
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
-import math
 
 import tensorflow.python.platform
 
@@ -178,6 +179,13 @@ class Conv2DTest(tf.test.TestCase):
                        138.0, 171.0, 204.0, 174.0, 216.0, 258.0, 210.0, 261.0,
                        312.0]
     self._VerifyValues(tensor_in_sizes=[1, 2, 3, 3],
+                       filter_in_sizes=[1, 1, 3, 3],
+                       stride=1, padding="VALID",
+                       expected=expected_output)
+
+  def testConv2DEmpty(self):
+    expected_output = []
+    self._VerifyValues(tensor_in_sizes=[0, 2, 3, 3],
                        filter_in_sizes=[1, 1, 3, 3],
                        stride=1, padding="VALID",
                        expected=expected_output)
@@ -372,11 +380,11 @@ class Conv2DTest(tf.test.TestCase):
     filter_shape = [filter_rows, filter_cols, in_depth, out_depth]
     # TODO(yangke): re-factor the computation of output shape.
     if padding == "VALID":
-      output_rows = int(math.ceil((input_rows - filter_rows + 1.0) / stride))
-      output_cols = int(math.ceil((input_cols - filter_cols + 1.0) / stride))
+      output_rows = (input_rows - filter_rows + stride) // stride
+      output_cols = (input_cols - filter_cols + stride) // stride
     else:
-      output_rows = int(math.ceil(float(input_rows) / stride))
-      output_cols = int(math.ceil(float(input_cols) / stride))
+      output_rows = (input_rows + stride - 1) // stride
+      output_cols = (input_cols + stride - 1) // stride
     output_shape = [batch, output_rows, output_cols, out_depth]
     input_size = 1
     for x in input_shape:
@@ -1007,4 +1015,5 @@ if __name__ == "__main__":
     setattr(Conv2DTest, "testInceptionBackFilter_" + str(index),
             GetInceptionBackFilterTest(input_size_, filter_size_, output_size_,
                                        stride_, padding_))
+
   tf.test.main()

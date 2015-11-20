@@ -1,4 +1,8 @@
 """Tests for tensorflow.python.framework.ops."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow.python.platform
 
 from tensorflow.python.framework import device as pydev
@@ -199,11 +203,12 @@ class CreateOpTest(test_util.TensorFlowTestCase):
                         [],
                         [types.float32, types.string], None,
                         name="myop2")
-    op3 = g.create_op(
-        "foo",
-        [op1.values()[0], op2.values()[1], op2.values()[0]],
-        [types.float32, types.int32], None,
-        name="myop3")
+    op3 = g.create_op("foo",
+                      [list(op1.values())[0], list(op2.values())[1],
+                       list(op2.values())[0]],
+                      [types.float32, types.int32],
+                      None,
+                      name="myop3")
     self.assertEquals(None, op1.device)
     self.assertEquals("/device:GPU", op2.device)
     self.assertEquals(None, op3.device)
@@ -626,6 +631,20 @@ class ControlDependenciesTest(test_util.TensorFlowTestCase):
     self.assertEqual(d.op.control_inputs, [a.op])
     # e should be dominated by c.
     self.assertEqual(e.op.control_inputs, [])
+
+  def testBasicWithConversion(self):
+    g = ops.Graph()
+    a = _apply_op(g, "const", [], [types.float32])
+
+    class ConvertibleObj(object):
+
+      def _as_graph_element(self):
+        return a
+
+    with g.control_dependencies([ConvertibleObj()]):
+      c = _apply_op(g, "const", [], [types.float32])
+
+    self.assertEqual(c.op.control_inputs, [a.op])
 
   def testNested(self):
     g = ops.Graph()

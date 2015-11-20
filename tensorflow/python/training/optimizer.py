@@ -1,6 +1,10 @@
 """Base class for optimizers."""
 # pylint: disable=g-bad-name
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import types as tf_types
 from tensorflow.python.ops import array_ops
@@ -134,7 +138,7 @@ class Optimizer(object):
     self._slots = {}
 
   def minimize(self, loss, global_step=None, var_list=None,
-               gate_gradients=GATE_OP, name=None):
+               gate_gradients=GATE_OP, aggregation_method=None, name=None):
     """Add operations to minimize 'loss' by updating 'var_list'.
 
     This method simply combines calls compute_gradients() and
@@ -151,6 +155,8 @@ class Optimizer(object):
         under the key GraphKeys.TRAINABLE_VARIABLES.
       gate_gradients: How to gate the computation of gradients.  Can be
         GATE_NONE, GATE_OP, or  GATE_GRAPH.
+      aggregation_method: Specifies the method used to combine gradient terms.
+        Valid values are defined in the class `AggregationMethod`.
       name: Optional name for the returned operation.
 
     Returns:
@@ -160,12 +166,14 @@ class Optimizer(object):
     Raises:
       ValueError: if some of the variables are not variables.Variable objects.
     """
-    grads_and_vars = self.compute_gradients(loss, var_list=var_list,
-                                            gate_gradients=gate_gradients)
+    grads_and_vars = self.compute_gradients(
+        loss, var_list=var_list, gate_gradients=gate_gradients,
+        aggregation_method=aggregation_method)
     return self.apply_gradients(grads_and_vars, global_step=global_step,
                                 name=name)
 
-  def compute_gradients(self, loss, var_list=None, gate_gradients=GATE_OP):
+  def compute_gradients(self, loss, var_list=None, gate_gradients=GATE_OP,
+                        aggregation_method=None):
     """Compute gradients of "loss" for the variables in "var_list".
 
     This is the first part of minimize().  It returns a list
@@ -181,6 +189,8 @@ class Optimizer(object):
         under the key GraphKey.TRAINABLE_VARIABLES.
       gate_gradients: How to gate the computation of gradients.  Can be
         GATE_NONE, GATE_OP, or  GATE_GRAPH.
+      aggregation_method: Specifies the method used to combine gradient terms.
+        Valid values are defined in the class `AggregationMethod`.
 
     Returns:
       A list of (gradient, variable) pairs.
@@ -201,10 +211,11 @@ class Optimizer(object):
       if not isinstance(var, variables.Variable):
         raise TypeError("Argument is not a variables.Variable: %s" % var)
     grads = gradients.gradients(
-        loss, var_list, gate_gradients=(gate_gradients == Optimizer.GATE_OP))
+        loss, var_list, gate_gradients=(gate_gradients == Optimizer.GATE_OP),
+        aggregation_method=aggregation_method)
     if gate_gradients == Optimizer.GATE_GRAPH:
       grads = control_flow_ops.tuple(grads)
-    grads_and_vars = zip(grads, var_list)
+    grads_and_vars = list(zip(grads, var_list))
     self._assert_valid_dtypes([v for g, v in grads_and_vars if g is not None])
     return grads_and_vars
 

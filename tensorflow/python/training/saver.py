@@ -1,9 +1,15 @@
 # pylint: disable=invalid-name
 """Save and restore variables."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import numbers
 import os.path
 import time
+
+import six
 
 from google.protobuf import text_format
 
@@ -228,8 +234,7 @@ class BaseSaverBuilder(object):
     per_device = collections.defaultdict(lambda: [])
     for var_to_save in vars_to_save:
       per_device[var_to_save.var.device].append(var_to_save)
-    return sorted([(dev, tup) for dev, tup in per_device.iteritems()],
-                  key=lambda t: t[0])
+    return sorted(per_device.items(), key=lambda t: t[0])
 
   def _VarListToDict(self, var_list):
     """Create a dictionary of names to variable lists.
@@ -295,8 +300,8 @@ class BaseSaverBuilder(object):
 
     vars_to_save = []
     seen_variables = set()
-    for name in sorted(names_to_variables.iterkeys()):
-      if not isinstance(name, basestring):
+    for name in sorted(names_to_variables.keys()):
+      if not isinstance(name, six.string_types):
         raise TypeError("names_to_variables must be a dict mapping string "
                         "names to variable Tensors. Name is not a string: %s" %
                         name)
@@ -879,9 +884,9 @@ def latest_checkpoint(checkpoint_dir, latest_filename=None):
   # Pick the latest checkpoint based on checkpoint state.
   ckpt = get_checkpoint_state(checkpoint_dir, latest_filename)
   if ckpt and ckpt.model_checkpoint_path:
-    checkpoint_full_path = os.path.join(
+    checkpoint_pattern = os.path.join(
         checkpoint_dir, ckpt.model_checkpoint_path)
-    if gfile.Exists(checkpoint_full_path):
-      return checkpoint_full_path
+    if gfile.Glob(checkpoint_pattern):
+      return checkpoint_pattern
 
   return None

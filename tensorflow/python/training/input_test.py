@@ -1,9 +1,14 @@
 """Tests for training.input."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import os
 import itertools
 import tensorflow.python.platform
 
+import numpy as np
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 
@@ -127,7 +132,7 @@ class RangeInputProducerTest(tf.test.TestCase):
 
       # No randomness, so just see repeated copies of the input.
       output = dequeue_many.eval()
-      self.assertAllEqual(range(range_size) * num_epochs, output)
+      self.assertAllEqual(list(xrange(range_size)) * num_epochs, output)
 
       # Reached the limit.
       with self.assertRaises(tf.errors.OutOfRangeError):
@@ -254,8 +259,33 @@ class BatchTest(tf.test.TestCase):
 
       for i in range(num_batches):
         results = sess.run(batched)
-        self.assertAllEqual(results[0],
-                            range(i * batch_size, (i + 1) * batch_size))
+        self.assertAllEqual(results[0], np.arange(i * batch_size,
+                                                  (i + 1) * batch_size))
+        self.assertAllEqual(results[1], ["string"] * batch_size)
+
+      # Reached the limit.
+      with self.assertRaises(tf.errors.OutOfRangeError):
+        sess.run(batched)
+      for thread in threads:
+        thread.join()
+
+  def testOneThreadEnqueueMany(self):
+    with self.test_session() as sess:
+      batch_size = 10
+      num_batches = 3
+      zero64 = tf.constant(0, dtype=tf.int64)
+      examples = tf.Variable(zero64)
+      counter = examples.count_up_to(num_batches * batch_size)
+      pre_batched = tf.train.batch([counter, "string"], batch_size=2)
+      batched = tf.train.batch(pre_batched, enqueue_many=True,
+                               batch_size=batch_size)
+      tf.initialize_all_variables().run()
+      threads = tf.train.start_queue_runners()
+
+      for i in range(num_batches):
+        results = sess.run(batched)
+        self.assertAllEqual(results[0], np.arange(i * batch_size,
+                                                  (i + 1) * batch_size))
         self.assertAllEqual(results[1], ["string"] * batch_size)
 
       # Reached the limit.
@@ -318,7 +348,7 @@ class BatchJoinTest(tf.test.TestCase):
       all_a = []
       seen_b = 0
       saw_both = 0
-      num_batches = (num_a + num_b) / batch_size
+      num_batches = (num_a + num_b) // batch_size
       for i in range(num_batches):
         results = sess.run(batched)
         tf.logging.info("Batch %d: %s", i, results[0])
@@ -337,7 +367,7 @@ class BatchJoinTest(tf.test.TestCase):
       self.assertGreater(saw_both, 1)
 
       # Verify the order of results from "a" were preserved.
-      self.assertAllEqual(all_a, range(num_a))
+      self.assertAllEqual(all_a, np.arange(num_a))
       self.assertEqual(seen_b, num_b)
 
       # Reached the limit.
@@ -441,7 +471,7 @@ class ShuffleBatchJoinTest(tf.test.TestCase):
       all_a = []
       seen_b = 0
       saw_both = 0
-      num_batches = (num_a + num_b) / batch_size
+      num_batches = (num_a + num_b) // batch_size
       for i in range(num_batches):
         results = sess.run(batched)
         tf.logging.info("Batch %d: %s", i, results[0])

@@ -40,7 +40,11 @@ want them run by N threads.
 @@shuffle_batch_join
 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+from six.moves import xrange  # pylint: disable=redefined-builtin
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import types
@@ -159,7 +163,7 @@ def range_input_producer(limit, num_epochs=None, shuffle=True, seed=None,
     is added to the current Graph's QUEUE_RUNNER collection.
   """
   with ops.op_scope([limit], name, "input_producer") as name:
-    range_tensor = math_ops.range(0, limit)
+    range_tensor = math_ops.range(limit)
     return _input_producer(
         range_tensor, types.int32, num_epochs, shuffle, seed, capacity, name,
         "fraction_of_%d_full" % capacity)
@@ -239,7 +243,7 @@ def _merge_shapes(shape_list, enqueue_many):
   shape_list = [tensor_shape.as_shape(s) for s in shape_list]
   if enqueue_many:
     # We want the shapes without the leading batch dimension.
-    shape_list = [s.WithRankAtLeast(1)[1:] for s in shape_list]
+    shape_list = [s.with_rank_at_least(1)[1:] for s in shape_list]
   merged_shape = shape_list[0]
   for s in shape_list[1:]:
     merged_shape.merge_with(s)
@@ -249,9 +253,9 @@ def _merge_shapes(shape_list, enqueue_many):
 def _shapes(tensor_list_list, shapes, enqueue_many):
   if shapes is None:
     l = len(tensor_list_list[0])
-    shapes = [_merge_shapes([tl[i].get_shape().as_list()
-                             for tl in tensor_list_list],
-                            enqueue_many) for i in range(l)]
+    shapes = [_merge_shapes(
+        [tl[i].get_shape().as_list() for tl in tensor_list_list], enqueue_many)
+              for i in xrange(l)]
   return shapes
 
 
@@ -291,6 +295,11 @@ def batch(tensor_list, batch_size, num_threads=1, capacity=32,
   output will have shape `[batch_size, x, y, z]`.  The `capacity` argument
   controls the how long the prefetching is allowed to grow the queues.
 
+  *N.B.:* You must ensure that either (i) the `shapes` argument is
+  passed, or (ii) all of the tensors in `tensor_list` must have
+  fully-defined shapes. `ValueError` will be raised if neither of
+  these conditions holds.
+
   Args:
     tensor_list: The list of tensors to enqueue.
     batch_size: The new batch size pulled from the queue.
@@ -303,6 +312,10 @@ def batch(tensor_list, batch_size, num_threads=1, capacity=32,
 
   Returns:
     A list of tensors with the same number and types as `tensor_list`.
+
+  Raises:
+    ValueError: If the `shapes` are not specified, and cannot be
+      inferred from the elements of `tensor_list`.
   """
   with ops.op_scope(tensor_list, name, "batch") as name:
     tensor_list = _validate(tensor_list)
@@ -352,6 +365,11 @@ def batch_join(tensor_list_list, batch_size, capacity=32, enqueue_many=False,
   The `capacity` argument controls the how long the prefetching is allowed to
   grow the queues.
 
+  *N.B.:* You must ensure that either (i) the `shapes` argument is
+  passed, or (ii) all of the tensors in `tensor_list_list` must have
+  fully-defined shapes. `ValueError` will be raised if neither of
+  these conditions holds.
+
   Args:
     tensor_list_list: A list of tuples of tensors to enqueue.
     batch_size: An integer. The new batch size pulled from the queue.
@@ -365,6 +383,10 @@ def batch_join(tensor_list_list, batch_size, capacity=32, enqueue_many=False,
   Returns:
     A list of tensors with the same number and types as
     `tensor_list_list[i]`.
+
+  Raises:
+    ValueError: If the `shapes` are not specified, and cannot be
+      inferred from the elements of `tensor_list_list`.
   """
   with ops.op_scope(_flatten(tensor_list_list), name, "batch_join") as name:
     tensor_list_list = _validate_join(tensor_list_list)
@@ -417,6 +439,11 @@ def shuffle_batch(tensor_list, batch_size, capacity, min_after_dequeue,
         min_after_dequeue=10000)
   ```
 
+  *N.B.:* You must ensure that either (i) the `shapes` argument is
+  passed, or (ii) all of the tensors in `tensor_list` must have
+  fully-defined shapes. `ValueError` will be raised if neither of
+  these conditions holds.
+
   Args:
     tensor_list: The list of tensors to enqueue.
     batch_size: The new batch size pulled from the queue.
@@ -432,6 +459,10 @@ def shuffle_batch(tensor_list, batch_size, capacity, min_after_dequeue,
 
   Returns:
     A list of tensors with the same number and types as `tensor_list`.
+
+  Raises:
+    ValueError: If the `shapes` are not specified, and cannot be
+      inferred from the elements of `tensor_list`.
   """
   with ops.op_scope(tensor_list, name, "shuffle_batch") as name:
     tensor_list = _validate(tensor_list)
@@ -441,7 +472,8 @@ def shuffle_batch(tensor_list, batch_size, capacity, min_after_dequeue,
         capacity=capacity, min_after_dequeue=min_after_dequeue, seed=seed,
         dtypes=dtypes, shapes=shapes)
     _enqueue(queue, tensor_list, num_threads, enqueue_many)
-    full = (math_ops.cast(queue.size() - min_after_dequeue, types.float32) *
+    full = (math_ops.cast(math_ops.maximum(0, queue.size() - min_after_dequeue),
+                          types.float32) *
             (1. / (capacity - min_after_dequeue)))
     # Note that name contains a '/' at the end so we intentionally do not place
     # a '/' after %s below.
@@ -484,6 +516,11 @@ def shuffle_batch_join(tensor_list_list, batch_size, capacity,
   The `capacity` argument controls the how long the prefetching is allowed to
   grow the queues.
 
+  *N.B.:* You must ensure that either (i) the `shapes` argument is
+  passed, or (ii) all of the tensors in `tensor_list_list` must have
+  fully-defined shapes. `ValueError` will be raised if neither of
+  these conditions holds.
+
   Args:
     tensor_list_list: A list of tuples of tensors to enqueue.
     batch_size: An integer. The new batch size pulled from the queue.
@@ -499,6 +536,10 @@ def shuffle_batch_join(tensor_list_list, batch_size, capacity,
 
   Returns:
     A list of tensors with the same number and types as `tensor_list_list[i]`.
+
+  Raises:
+    ValueError: If the `shapes` are not specified, and cannot be
+      inferred from the elements of `tensor_list_list`.
   """
   with ops.op_scope(
       _flatten(tensor_list_list), name, "shuffle_batch_join") as name:
@@ -509,7 +550,8 @@ def shuffle_batch_join(tensor_list_list, batch_size, capacity,
         capacity=capacity, min_after_dequeue=min_after_dequeue, seed=seed,
         dtypes=dtypes, shapes=shapes)
     _enqueue_join(queue, tensor_list_list, enqueue_many)
-    full = (math_ops.cast(queue.size() - min_after_dequeue, types.float32) *
+    full = (math_ops.cast(math_ops.maximum(0, queue.size() - min_after_dequeue),
+                          types.float32) *
             (1. / (capacity - min_after_dequeue)))
     # Note that name contains a '/' at the end so we intentionally do not place
     # a '/' after %s below.

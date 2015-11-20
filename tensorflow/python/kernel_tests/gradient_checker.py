@@ -3,6 +3,10 @@
 The gradient checker verifies numerically that an op/graph properly
 computes the gradients
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow.python.platform
 
 import numpy as np
@@ -76,7 +80,7 @@ def _ComputeTheoricalJacobian(x, x_shape, x_data, dy, dy_shape, dx):
 def _ComputeNumericJacobian(x, x_shape, x_data, y, y_shape, delta):
   """Computes the numeric Jacobian for dy/dx.
 
-  Computes the numeric Japcobian by slightly perturbing the inputs and
+  Computes the numeric Jacobian by slightly perturbing the inputs and
   measuring the differences on the output.
 
   Args:

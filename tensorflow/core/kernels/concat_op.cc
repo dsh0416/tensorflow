@@ -2,15 +2,15 @@
 
 #include <vector>
 
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
-#include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/framework/tensor_types.h"
+#include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/kernels/concat_op.h"
 #include "tensorflow/core/platform/port.h"
-#include "tensorflow/core/public/tensor.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/public/status.h"
+#include "tensorflow/core/public/tensor.h"
 
 namespace tensorflow {
 
@@ -135,6 +135,7 @@ REGISTER_CONCAT(bfloat16);
                           ConcatOp<GPUDevice, type>)
 
 TF_CALL_GPU_NUMBER_TYPES(REGISTER_GPU);
+REGISTER_GPU(bfloat16);
 #undef REGISTER_GPU
 
 // A special GPU kernel for int32.

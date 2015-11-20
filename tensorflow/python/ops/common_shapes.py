@@ -1,5 +1,7 @@
 """A library of common shape functions."""
-import math
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from tensorflow.python.framework import tensor_shape
 
@@ -87,8 +89,8 @@ def bias_add_shape(op):
   return [output_shape]
 
 
-def _Get2DOutputSize(input_height, input_width, filter_height, filter_width,
-                     row_stride, col_stride, padding_type):
+def get2d_conv_output_size(input_height, input_width, filter_height,
+                           filter_width, row_stride, col_stride, padding_type):
   """Returns the number of rows and columns in a convolution/pooling output."""
   input_height = tensor_shape.as_dimension(input_height)
   input_width = tensor_shape.as_dimension(input_width)
@@ -114,12 +116,10 @@ def _Get2DOutputSize(input_height, input_width, filter_height, filter_width,
     if input_height.value is None or filter_height.value is None:
       out_rows = None
     elif padding_type == "VALID":
-      out_rows = int(
-          math.ceil((input_height.value - filter_height.value + 1.0)
-                    / row_stride))
+      out_rows = ((input_height.value - filter_height.value + row_stride) //
+                  row_stride)
     elif padding_type == "SAME":
-      out_rows = int(math.ceil(input_height.value * 1.0
-                               / row_stride))
+      out_rows = (input_height.value + row_stride - 1) // row_stride
     else:
       raise ValueError("Invalid value for padding: %r" % padding_type)
 
@@ -127,11 +127,10 @@ def _Get2DOutputSize(input_height, input_width, filter_height, filter_width,
     if input_width.value is None or filter_width.value is None:
       out_cols = None
     elif padding_type == "VALID":
-      out_cols = int(
-          math.ceil((input_width.value - filter_width.value + 1.0)
-                    / col_stride))
+      out_cols = ((input_width.value - filter_width.value + col_stride) //
+                  col_stride)
     elif padding_type == "SAME":
-      out_cols = int(math.ceil(input_width.value * 1.0 / col_stride))
+      out_cols = (input_width.value + col_stride - 1) // col_stride
 
     return out_rows, out_cols
 
@@ -185,7 +184,7 @@ def conv2d_shape(op):
   # in the kernel implementation.
   stride = stride_r
   padding = op.get_attr("padding")
-  out_rows, out_cols = _Get2DOutputSize(
+  out_rows, out_cols = get2d_conv_output_size(
       in_rows, in_cols, filter_rows, filter_cols, stride, stride, padding)
 
   return [tensor_shape.TensorShape([batch_size, out_rows, out_cols, depth_out])]
@@ -247,7 +246,7 @@ def separable_conv2d_shape(op):
   # in the kernel implementation.
   stride = stride_r
   padding = op.get_attr("padding")
-  out_rows, out_cols = _Get2DOutputSize(
+  out_rows, out_cols = get2d_conv_output_size(
       in_rows, in_cols, filter_rows, filter_cols, stride, stride, padding)
 
   return [tensor_shape.TensorShape([batch_size, out_rows, out_cols, depth_out])]
@@ -295,7 +294,7 @@ def avg_pool_shape(op):
   # in the kernel implementation.
   padding = op.get_attr("padding")
 
-  out_rows, out_cols = _Get2DOutputSize(
+  out_rows, out_cols = get2d_conv_output_size(
       in_rows, in_cols, ksize_r, ksize_c, stride_r, stride_c, padding)
 
   return [tensor_shape.TensorShape([batch_size, out_rows, out_cols, depth])]
@@ -347,7 +346,7 @@ def max_pool_shape(op):
   # in the kernel implementation.
   if ksize_d == 1:
     padding = op.get_attr("padding")
-    out_rows, out_cols = _Get2DOutputSize(
+    out_rows, out_cols = get2d_conv_output_size(
         in_rows, in_cols, ksize_r, ksize_c, stride_r, stride_c, padding)
     return [tensor_shape.TensorShape([batch_size, out_rows, out_cols, depth])]
   else:
@@ -357,8 +356,8 @@ def max_pool_shape(op):
     if stride_d != ksize_d:
       raise ValueError("Depthwise max pooling requires the depth window "
                        "to equal the depth stride.")
-    return [tensor_shape.TensorShape(
-        [batch_size, in_rows, in_cols, depth / ksize_d])]
+    return [tensor_shape.TensorShape([batch_size, in_rows, in_cols, depth //
+                                      ksize_d])]
 
 
 def no_outputs(unused_op):

@@ -2,9 +2,9 @@
 #define TENSORFLOW_KERNELS_PAD_OP_H_
 // Functor definition for PadOp, must be compilable by nvcc.
 
-#include "tensorflow/core/platform/port.h"
-#include "tensorflow/core/framework/tensor_types.h"
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
+#include "tensorflow/core/framework/tensor_types.h"
+#include "tensorflow/core/platform/port.h"
 
 namespace tensorflow {
 namespace functor {
@@ -21,6 +21,15 @@ struct Pad {
   }
 };
 
+template <typename Device, typename T>
+struct Pad<Device, T, 0> {
+  // In the scalar case we simply copy the input.
+  void operator()(const Device& d, typename TTypes<T, 0>::Tensor output,
+                  typename TTypes<T, 0>::ConstTensor input,
+                  Eigen::array<std::pair<int32, int32>, 0>) {
+    output.device(d) = input;
+  }
+};
 }  // namespace functor
 }  // namespace tensorflow
 

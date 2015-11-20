@@ -1,4 +1,8 @@
 """Tests for tensorflow.ops.ops."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow.python.platform
 
 import numpy as np
@@ -185,6 +189,10 @@ class RangeTest(tf.test.TestCase):
     self.assertTrue(np.array_equal(
         self._Range(100, 500, 100), np.array([100, 200, 300, 400])))
     self.assertEqual(tf.range(0, 5, 1).dtype, tf.int32)
+
+  def testLimitOnly(self):
+    with self.test_session():
+      self.assertAllEqual(np.arange(5), tf.range(5).eval())
 
   def testEmpty(self):
     for start in 0, 5:

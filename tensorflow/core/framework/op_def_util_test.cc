@@ -1,12 +1,12 @@
 #include "tensorflow/core/framework/op_def_util.h"
 
+#include <gtest/gtest.h>
 #include "tensorflow/core/framework/op_def.pb.h"
 #include "tensorflow/core/framework/op_def_builder.h"
-#include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/lib/strings/str_util.h"
-#include <gtest/gtest.h>
+#include "tensorflow/core/platform/logging.h"
+#include "tensorflow/core/platform/protobuf.h"
 
 namespace tensorflow {
 namespace {
@@ -19,9 +19,7 @@ OpDef FromText(const string& text) {
 
 class ValidateOpDefTest : public ::testing::Test {
  protected:
-  Status TestProto(const string& text) {
-    return ValidateOpDef(FromText(text));
-  }
+  Status TestProto(const string& text) { return ValidateOpDef(FromText(text)); }
 
   Status TestBuilder(const OpDefBuilder& builder) {
     OpDef op_def;
@@ -117,39 +115,39 @@ TEST_F(ValidateOpDefTest, BadAttrDefault) {
   ExpectFailure(
       TestProto("name: 'BadAttrDef' attr { name: 'a' "
                 "type: 'int' default_value { s: 'x' } }"),
-      "AttrValue had value with type string when int expected\n\t for "
+      "AttrValue had value with type 'string' when 'int' expected\n\t for "
       "attr 'a'\n\t in Op 'BadAttrDef'");
   ExpectFailure(TestProto("name: 'BadAttrDef' attr { name: 'a' "
                           "type: 'int' default_value { f: 0.5 } }"),
-                "AttrValue had value with type float when int expected\n\t for "
-                "attr 'a'\n\t in Op 'BadAttrDef'");
+                "AttrValue had value with type 'float' when 'int' expected\n"
+                "\t for attr 'a'\n\t in Op 'BadAttrDef'");
   ExpectFailure(
       TestProto("name: 'BadAttrDef' attr { name: 'a' type: 'int' "
                 "default_value { i: 5 list { i: [2] } } }"),
-      "AttrValue had value with type list(int) when int expected\n\t for "
+      "AttrValue had value with type 'list(int)' when 'int' expected\n\t for "
       "attr 'a'\n\t in Op 'BadAttrDef'");
   ExpectFailure(
       TestProto("name: 'BadAttrDef' attr { name: 'a' "
                 "type: 'list(int)' default_value { f: 0.5 } }"),
-      "AttrValue had value with type float when list(int) expected\n\t "
+      "AttrValue had value with type 'float' when 'list(int)' expected\n\t "
       "for attr 'a'\n\t in Op 'BadAttrDef'");
   ExpectFailure(
       TestProto("name: 'BadAttrDef' attr { name: 'a' type: 'list(int)' "
                 "default_value { list { i: [5] f: [0.5] } } }"),
-      "AttrValue had value with type list(float) when list(int) "
+      "AttrValue had value with type 'list(float)' when 'list(int)' "
       "expected\n\t for attr 'a'\n\t in Op 'BadAttrDef'");
 
   ExpectFailure(TestProto("name: 'BadAttrDef' attr { name: 'a' "
                           "type: 'type' default_value { } }"),
-                "AttrValue missing value with expected type type\n\t for "
+                "AttrValue missing value with expected type 'type'\n\t for "
                 "attr 'a'\n\t in Op 'BadAttrDef'");
   ExpectFailure(TestProto("name: 'BadAttrDef' attr { name: 'a' "
                           "type: 'shape' default_value { } }"),
-                "AttrValue missing value with expected type shape\n\t for "
+                "AttrValue missing value with expected type 'shape'\n\t for "
                 "attr 'a'\n\t in Op 'BadAttrDef'");
   ExpectFailure(TestProto("name: 'BadAttrDef' attr { name: 'a' "
                           "type: 'tensor' default_value { } }"),
-                "AttrValue missing value with expected type tensor\n\t for "
+                "AttrValue missing value with expected type 'tensor'\n\t for "
                 "attr 'a'\n\t in Op 'BadAttrDef'");
 
   // default_value {} is indistinguishable from default_value{ list{} } (one
@@ -242,14 +240,13 @@ TEST_F(ValidateOpDefTest, BadAttrAllowed) {
   ExpectFailure(TestBuilder(OpDefBuilder("BadAttrtude")
                                 .Attr("x: list({'foo', 'bar'}) = ['baz']")),
                 "attr 'x' of \"baz\" is not in the list of allowed values");
-  ExpectFailure(TestProto(
-                    "name: 'BadAttrtude' attr { name: 'a' "
-                    "type: 'string' allowed_values { s: 'not list' } }"),
-                "with type string when list(string) expected");
+  ExpectFailure(TestProto("name: 'BadAttrtude' attr { name: 'a' "
+                          "type: 'string' allowed_values { s: 'not list' } }"),
+                "with type 'string' when 'list(string)' expected");
   ExpectFailure(
       TestProto("name: 'BadAttrtude' attr { name: 'a' "
                 "type: 'string' allowed_values { list { i: [6] } } }"),
-      "with type list(int) when list(string) expected");
+      "with type 'list(int)' when 'list(string)' expected");
 }
 
 TEST_F(ValidateOpDefTest, BadArgType) {

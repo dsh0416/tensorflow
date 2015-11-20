@@ -3,12 +3,12 @@
 #include <unordered_map>
 #include <utility>
 
-#include "tensorflow/core/platform/thread_annotations.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/port.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/notification.h"
 #include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/platform/logging.h"
+#include "tensorflow/core/platform/port.h"
+#include "tensorflow/core/platform/thread_annotations.h"
 
 namespace tensorflow {
 
@@ -188,9 +188,9 @@ class LocalRendezvousImpl : public Rendezvous {
     // message arrives.
     Item* item = new Item;
     item->waiter = done;
+    item->recv_alloc_attrs = recv_args.alloc_attrs;
     if (recv_args.device_context) {
       item->recv_dev_context = recv_args.device_context;
-      item->recv_alloc_attrs = recv_args.alloc_attrs;
       item->recv_dev_context->Ref();
     }
     CHECK(table_.insert({key, item}).second);

@@ -6,13 +6,13 @@
 
 #include <vector>
 
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/kernels/ops_util.h"
-#include "tensorflow/core/public/status.h"
 #include "tensorflow/core/lib/gtl/array_slice.h"
+#include "tensorflow/core/public/status.h"
 #include "tensorflow/core/public/tensor.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
 namespace tensorflow {
 
@@ -90,17 +90,17 @@ class SplitOp : public OpKernel {
     TensorShape output_shape(input_shape);
     output_shape.set_dim(split_dim, split_dim_output_size);
 
-    Eigen::DSizes<ptrdiff_t, 3> indices{0, 0, 0};
-    Eigen::DSizes<ptrdiff_t, 3> sizes{prefix_dim_size, split_dim_output_size,
-                                      suffix_dim_size};
+    Eigen::DSizes<Eigen::DenseIndex, 3> indices{0, 0, 0};
+    Eigen::DSizes<Eigen::DenseIndex, 3> sizes{
+        prefix_dim_size, split_dim_output_size, suffix_dim_size};
 
     for (int i = 0; i < num_split; ++i) {
       Tensor* result = nullptr;
       OP_REQUIRES_OK(context,
                      context->allocate_output(i, output_shape, &result));
       if (prefix_dim_size * split_dim_output_size * suffix_dim_size > 0) {
-        Eigen::DSizes<ptrdiff_t, 3> slice_indices;
-        Eigen::DSizes<ptrdiff_t, 3> slice_sizes;
+        Eigen::DSizes<Eigen::DenseIndex, 3> slice_indices;
+        Eigen::DSizes<Eigen::DenseIndex, 3> slice_sizes;
         for (int j = 0; j < 3; ++j) {
           slice_indices[j] = indices[j];
           slice_sizes[j] = sizes[j];

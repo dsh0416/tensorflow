@@ -1,12 +1,15 @@
 """Data Flow Operations."""
 # pylint: disable=g-bad-name
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import re
 
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.framework import tensor_util
-from tensorflow.python.framework import types
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import common_shapes
 from tensorflow.python.ops import control_flow_ops
@@ -404,174 +407,11 @@ class FIFOQueue(QueueBase):
 # TODO(josh11b): class BatchQueue(QueueBase):
 
 
-# pylint: disable=protected-access
-class LookupTableBase(object):
-  """Represents a lookup table that persists across different steps."""
-
-  def __init__(self, key_dtype, value_dtype, default_value, table_ref):
-    """Construct a table object from a table reference.
-
-    Args:
-      key_dtype:  The key data type of the table.
-      value_dtype:  The kvalue data type of the table.
-      default_value: The scalar tensor to be used when a key is not present in
-        the table.
-      table_ref: The table reference, i.e. the output of the lookup table ops.
-    """
-    self._key_dtype = types.as_dtype(key_dtype)
-    self._value_dtype = types.as_dtype(value_dtype)
-    self._shapes = [tensor_shape.TensorShape([1])]
-    self._table_ref = table_ref
-    self._name = self._table_ref.op.name.split("/")[-1]
-    self._default_value = ops.convert_to_tensor(default_value,
-                                                dtype=self._value_dtype)
-    self._default_value.get_shape().merge_with(tensor_shape.scalar())
-
-  @property
-  def table_ref(self):
-    """Get the underlying table reference."""
-    return self._table_ref
-
-  @property
-  def key_dtype(self):
-    """The key dtype supported by the table."""
-    return self._key_dtype
-
-  @property
-  def value_dtype(self):
-    """The value dtype supported by the table."""
-    return self._value_dtype
-
-  @property
-  def name(self):
-    """The name of the table."""
-    return self._name
-
-  @property
-  def default_value(self):
-    """The default value of the table."""
-    return self._default_value
-
-  def size(self, name=None):
-    """Compute the number of elements in this table.
-
-    Args:
-      name: A name for the operation (optional).
-
-    Returns:
-      A scalar tensor containing the number of elements in this table.
-    """
-    if name is None:
-      name = "%s_Size" % self._name
-    return gen_data_flow_ops._lookup_table_size(self._table_ref, name=name)
-
-  def lookup(self, keys, name=None):
-    """Returns the values for the given 'keys' tensor.
-
-    If an element on the key tensor is not found in the table, the default_value
-    is used.
-
-    Args:
-      keys: The tensor for the keys.
-      name: Optional name for the op.
-
-    Returns:
-      The operation that looks up the keys.
-
-    Raises:
-      TypeError: when 'keys' or 'default_value' doesn't match the table data
-        types.
-    """
-    if name is None:
-      name = "%s_lookup_table_find" % self._name
-
-    if keys.dtype != self._key_dtype:
-      raise TypeError("Signature mismatch. Keys must be dtype %s, got %s." % (
-          self._key_dtype, keys.dtype))
-
-    return gen_data_flow_ops._lookup_table_find(
-        self._table_ref, keys, self._default_value, name=name)
-
-  def initialize_from(self, keys, values, name=None):
-    """Initialize the lookup table with the provided keys and values tensors.
-
-    Construct an initializer object from keys and value tensors.
-
-    Args:
-      keys: The tensor for the keys.
-      values: The tensor for the values.
-      name: Optional name for the op.
-
-    Returns:
-      The operation that initializes a lookup table.
-
-    Raises:
-      TypeError: when the 'keys' and 'values' data type do not match the table
-      key and value data types.
-    """
-    if name is None:
-      name = "%s_initialize_table" % self.name
-    with ops.op_scope([keys, values], None, name):
-      keys = ops.convert_to_tensor(keys, dtype=self.key_dtype, name="keys")
-      values = ops.convert_to_tensor(values, dtype=self.value_dtype,
-                                     name="values")
-
-    init_op = gen_data_flow_ops._initialize_table(
-        self.table_ref, keys, values, name=name)
-    ops.add_to_collection(ops.GraphKeys.TABLE_INITIALIZERS, init_op)
-    return init_op
-
-  def _check_table_dtypes(self, key_dtype, value_dtype):
-    """Check that the given key_dtype and value_dtype matches the table dtypes'.
-
-    Args:
-      key_dtype: The key data type to check.
-      value_dtype: The value data type to check.
-
-    Raises:
-      TypeError: when 'key_dtype' or 'value_dtype' doesn't match the table data
-        types.
-    """
-    if key_dtype != self.key_dtype:
-      raise TypeError("Invalid key dtype, expected %s but got %s." % (
-          self.key_dtype, key_dtype))
-    if value_dtype != self.value_dtype:
-      raise TypeError("Invalid value dtype, expected %s but got %s." % (
-          self.value_dtype, value_dtype))
-
-
-class HashTable(LookupTableBase):
-  """A generic hash table implementation."""
-
-  def __init__(self, key_dtype, value_dtype, default_value, shared_name=None,
-               name="hash_table"):
-    """Create a generic hash table.
-
-    A table holds a key-value pairs. The key and value types are
-    described by key_dtype and value_dtype respectively.
-
-    Args:
-      key_dtype:  The key data type of the table.
-      value_dtype:  The kvalue data type of the table.
-      default_value: The scalar tensor to be used when a key is not present in
-        the table.
-      shared_name: Optional. If non-empty, this table will be shared under
-        the given name across multiple sessions.
-      name: Optional name for the hash table op.
-
-    Returns:
-      A table object that can be used to lookup data.
-    """
-    table_ref = gen_data_flow_ops._hash_table(
-        shared_name=shared_name, key_dtype=key_dtype,
-        value_dtype=value_dtype, name=name)
-
-    super(HashTable, self).__init__(key_dtype, value_dtype, default_value,
-                                    table_ref)
-
-
 def initialize_all_tables(name="init_all_tables"):
   """Returns an Op that initializes all tables of the default graph.
+
+  Args:
+    name: Optional name for the initialization op.
 
   Returns:
     An Op that initializes all tables.  Note that if there are

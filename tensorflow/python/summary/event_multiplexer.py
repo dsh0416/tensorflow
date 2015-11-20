@@ -1,11 +1,16 @@
 """Provides an interface for working with multiple event files."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 import threading
 
 from tensorflow.python.platform import gfile
 from tensorflow.python.platform import logging
 from tensorflow.python.summary import event_accumulator
+import six
 
 
 class EventMultiplexer(object):
@@ -77,7 +82,7 @@ class EventMultiplexer(object):
     self._autoupdate_interval = None
     self._size_guidance = size_guidance
     if run_path_map is not None:
-      for (run, path) in run_path_map.iteritems():
+      for (run, path) in six.iteritems(run_path_map):
         self.AddRun(path, run)
 
   def AddRun(self, path, name=None):
@@ -108,8 +113,8 @@ class EventMultiplexer(object):
         if name in self._paths and self._paths[name] != path:
           # TODO(danmane) - Make it impossible to overwrite an old path with
           # a new path (just give the new path a distinct name)
-          logging.warning('Conflict for name %s: old path %s, new path %s' %
-                          (name, self._paths[name], path))
+          logging.warning('Conflict for name %s: old path %s, new path %s',
+                          name, self._paths[name], path)
         logging.info('Constructing EventAccumulator for %s', path)
         accumulator = event_accumulator.EventAccumulator(path,
                                                          self._size_guidance)
@@ -123,13 +128,15 @@ class EventMultiplexer(object):
     return self
 
   def AddRunsFromDirectory(self, path, name=None):
-    """Load runs from a directory, assuming each subdirectory is a run.
+    """Load runs from a directory; recursively walks subdirectories.
 
     If path doesn't exist, no-op. This ensures that it is safe to call
       `AddRunsFromDirectory` multiple times, even before the directory is made.
 
-    If the directory contains TensorFlow event files, it is itself treated as a
-      run.
+    If path is a directory, load event files in the directory (if any exist) and
+      recursively call AddRunsFromDirectory on any subdirectories. This mean you
+      can call AddRunsFromDirectory at the root of a tree of event logs and
+      TensorBoard will load them all.
 
     If the `EventMultiplexer` is already loaded or autoupdating, this will cause
     the newly created accumulators to also `Reload()` or `AutoUpdate()`.
@@ -151,32 +158,23 @@ class EventMultiplexer(object):
     if not gfile.Exists(path):
       return  # Maybe it hasn't been created yet, fail silently to retry later
     if not gfile.IsDirectory(path):
-      raise ValueError('Path exists and is not a directory, %s'  % path)
-    paths = gfile.ListDirectory(path)
-    is_directory = lambda x: gfile.IsDirectory(os.path.join(path, x))
-    subdirectories = filter(is_directory, paths)
-    for s in subdirectories:
-      if name:
-        subname = '/'.join([name, s])
-      else:
-        subname = s
-      self.AddRun(os.path.join(path, s), subname)
+      raise ValueError('AddRunsFromDirectory: path exists and is not a '
+                       'directory, %s'  % path)
 
-    if filter(event_accumulator.IsTensorFlowEventsFile, paths):
-      directory_name = os.path.split(path)[1]
-      logging.info('Directory %s has event files; loading' % directory_name)
-      if name:
-        dname = name
-      else:
-        dname = directory_name
-      self.AddRun(path, dname)
+    for (subdir, _, files) in os.walk(path):
+      if list(filter(event_accumulator.IsTensorFlowEventsFile, files)):
+        logging.info('Adding events from directory %s', subdir)
+        rpath = os.path.relpath(subdir, path)
+        subname = os.path.join(name, rpath) if name else rpath
+        self.AddRun(subdir, name=subname)
+
     return self
 
   def Reload(self):
     """Call `Reload` on every `EventAccumulator`."""
     self._reload_called = True
     with self._accumulators_mutex:
-      loaders = self._accumulators.values()
+      loaders = list(self._accumulators.values())
 
     for l in loaders:
       l.Reload()
@@ -187,7 +185,7 @@ class EventMultiplexer(object):
     self._autoupdate_interval = interval
     self._autoupdate_called = True
     with self._accumulators_mutex:
-      loaders = self._accumulators.values()
+      loaders = list(self._accumulators.values())
     for l in loaders:
       l.AutoUpdate(interval)
     return self
@@ -295,7 +293,7 @@ class EventMultiplexer(object):
     """
     with self._accumulators_mutex:
       # To avoid nested locks, we construct a copy of the run-accumulator map
-      items = list(self._accumulators.iteritems())
+      items = list(six.iteritems(self._accumulators))
     return {
         run_name: accumulator.Tags()
         for run_name, accumulator in items
@@ -334,7 +332,7 @@ def AutoloadingMultiplexer(path_to_run, interval_secs=60,
   if not isinstance(path_to_run, dict):
     raise TypeError('path_to_run should be a dict, was %s', path_to_run)
   def Load():
-    for (path, name) in path_to_run.iteritems():
+    for (path, name) in six.iteritems(path_to_run):
       logging.info('Checking for new runs in %s', path)
       multiplexer.AddRunsFromDirectory(path, name)
     t = threading.Timer(interval_secs, Load)

@@ -3,15 +3,15 @@
 
 #include <vector>
 
+#include "third_party/eigen3/unsupported/Eigen/CXX11/NeuralNetworks"
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/numeric_op.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/kernels/avgpooling_op.h"
 #include "tensorflow/core/kernels/maxpooling_op.h"
 #include "tensorflow/core/kernels/ops_util.h"
-#include "tensorflow/core/util/padding.h"
 #include "tensorflow/core/public/tensor_shape.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/NeuralNetworks"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
+#include "tensorflow/core/util/padding.h"
 
 namespace tensorflow {
 
@@ -243,7 +243,7 @@ void SpatialAvgPool(OpKernelContext* context, Tensor* output,
             std::min(wpad / params.col_stride + 1, params.out_width);
         const int in_offset =
             (b * params.tensor_in_rows + h) * params.tensor_in_cols + w;
-        Eigen::DSizes<ptrdiff_t, 2> in_indices(0, in_offset);
+        Eigen::DSizes<Eigen::DenseIndex, 2> in_indices(0, in_offset);
         for (int ph = h_start; ph < h_end; ++ph) {
           for (int pw = w_start; pw < w_end; ++pw) {
             const int out_offset =

@@ -6,8 +6,8 @@
 #include <map>
 #include <memory>
 
-#include "tensorflow/core/platform/port.h"  // Must be first
 #include "tensorflow/core/lib/core/stringpiece.h"
+#include "tensorflow/core/platform/port.h"  // Must be first
 #include "tensorflow/core/platform/thread_annotations.h"
 
 namespace tensorflow {
@@ -196,7 +196,7 @@ class Tracing::TraceMe {
 }  // namespace port
 }  // namespace tensorflow
 
-#if defined(PLATFORM_GOOGLE) && !defined(ANDROID) && !defined(__ANDROID__)
+#if defined(PLATFORM_GOOGLE)
 #include "tensorflow/core/platform/google/tracing_impl.h"
 #else
 #include "tensorflow/core/platform/default/tracing_impl.h"

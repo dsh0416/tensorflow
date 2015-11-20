@@ -1,5 +1,9 @@
 """Logging Operations."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import common_shapes
 from tensorflow.python.ops import gen_logging_ops
@@ -38,7 +42,8 @@ def Print(input_, data, message=None, first_n=None, summarize=None,
     message: A string, prefix of the error message.
     first_n: Only log `first_n` number of times. Negative numbers log always;
              this is the default.
-    summarize: Only print this many entries of each tensor.
+    summarize: Only print this many entries of each tensor. If None, then a
+               maximum of 3 elements are printed per input tensor.
     name: A name for the operation (optional).
 
   Returns:

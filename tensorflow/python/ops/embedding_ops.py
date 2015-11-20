@@ -1,5 +1,9 @@
 """Operations for embeddings."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+from six.moves import xrange  # pylint: disable=redefined-builtin
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import types
 from tensorflow.python.ops import array_ops
@@ -47,7 +51,7 @@ def embedding_lookup(params, ids, name=None):
     else:
       ids = ops.convert_to_tensor(ids, name="ids")
       flat_ids = array_ops.reshape(ids, [-1])
-      original_indices = math_ops.range(0, array_ops.size(flat_ids))
+      original_indices = math_ops.range(array_ops.size(flat_ids))
       # Compute flat_ids % partitions for each id
       ids_mod_p = flat_ids % np
       if ids_mod_p.dtype != types.int32:
@@ -59,10 +63,10 @@ def embedding_lookup(params, ids, name=None):
                                                  np)
       # Do np separate lookups, finding embeddings for plist[p] in params[p]
       partitioned_result = []
-      for p in range(np):
+      for p in xrange(np):
         # TODO(agarwal): handle device allocations here and later in the
         # colocate code.
-        gather_ids = plist[p] / np
+        gather_ids = plist[p] // np
         with ops.device(params[p].device):
           partitioned_result.append(array_ops.gather(params[p], gather_ids))
       # Stitch these back together

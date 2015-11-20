@@ -12,9 +12,8 @@ py_library(
     srcs = [
         "data_utils.py",
     ],
-    deps = [
-        "//tensorflow:tensorflow_py",
-    ],
+    srcs_version = "PY2AND3",
+    deps = ["//tensorflow:tensorflow_py"],
 )
 
 py_library(
@@ -22,6 +21,7 @@ py_library(
     srcs = [
         "seq2seq_model.py",
     ],
+    srcs_version = "PY2AND3",
     deps = [
         ":data_utils",
         "//tensorflow:tensorflow_py",
@@ -34,6 +34,7 @@ py_binary(
     srcs = [
         "translate.py",
     ],
+    srcs_version = "PY2AND3",
     deps = [
         ":data_utils",
         ":seq2seq_model",
@@ -51,6 +52,7 @@ py_test(
         "--self_test=True",
     ],
     main = "translate.py",
+    srcs_version = "PY2AND3",
     deps = [
         ":data_utils",
         ":seq2seq_model",

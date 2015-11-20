@@ -8,13 +8,13 @@
 
 #include "tensorflow/core/kernels/slice_op.h"
 
+#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/kernels/ops_util.h"
-#include "tensorflow/core/public/status.h"
 #include "tensorflow/core/lib/gtl/array_slice.h"
+#include "tensorflow/core/public/status.h"
 #include "tensorflow/core/public/tensor.h"
-#include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 
 namespace tensorflow {
 
@@ -171,8 +171,8 @@ class SliceOp : public OpKernel {
   template <int NDIM>
   void HandleCase(OpKernelContext* context, const gtl::ArraySlice<int64>& begin,
                   const gtl::ArraySlice<int64>& size, Tensor* result) {
-    Eigen::DSizes<ptrdiff_t, NDIM> indices;
-    Eigen::DSizes<ptrdiff_t, NDIM> sizes;
+    Eigen::DSizes<Eigen::DenseIndex, NDIM> indices;
+    Eigen::DSizes<Eigen::DenseIndex, NDIM> sizes;
     for (int i = 0; i < NDIM; ++i) {
       indices[i] = begin[i];
       sizes[i] = size[i];
@@ -205,8 +205,8 @@ namespace functor {
   void Slice<GPUDevice, T, NDIM>::operator()(                      \
       const GPUDevice& d, typename TTypes<T, NDIM>::Tensor output, \
       typename TTypes<T, NDIM>::ConstTensor input,                 \
-      const Eigen::DSizes<ptrdiff_t, NDIM>& indices,               \
-      const Eigen::DSizes<ptrdiff_t, NDIM>& sizes);                \
+      const Eigen::DSizes<Eigen::DenseIndex, NDIM>& indices,       \
+      const Eigen::DSizes<Eigen::DenseIndex, NDIM>& sizes);        \
   extern template struct Slice<GPUDevice, T, NDIM>;
 
 #define DECLARE_FOR_N(T)  \

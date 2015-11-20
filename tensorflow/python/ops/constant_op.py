@@ -58,7 +58,7 @@ print sess.run(norm)
 print sess.run(norm)
 ```
 
-Another common use of random values is the intialization of variables. Also see
+Another common use of random values is the initialization of variables. Also see
 the [Variables How To](../../how_tos/variables/index.md).
 
 ```python
@@ -79,10 +79,13 @@ print sess.run(var)
 @@set_random_seed
 
 """
-"""Constant Operation.
 
-Has to be separate from array_ops to avoid a cyclic dependency.
-"""
+# Must be separate from array_ops to avoid a cyclic dependency.
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow.python.platform
 import numpy as np
 
